@@ -1,0 +1,69 @@
+name: Update and publish
+
+on:
+  schedule:
+    - cron: '0 5 * * *'        # midnight Eastern (standard time)
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Pull the league from Sleeper
+        id: pull
+        continue-on-error: true      # if Sleeper is down or a check fails, keep the last good data
+        run: python3 scripts/update.py
+
+      - name: Restore the last good data if the pull failed
+        if: steps.pull.outcome == 'failure'
+        run: git checkout -- data
+
+      - name: Backtest, test, build
+        run: |
+          node src/backtest.js > /dev/null
+          node src/test_engine.js
+          python3 src/build.py
+
+      - name: Save the new data
+        if: steps.pull.outcome == 'success'
+        run: |
+          git config user.name "league-odds update"
+          git config user.email "actions@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet || git commit -m "Nightly data update"
+          git push
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Flag a failed pull
+        if: steps.pull.outcome == 'failure'
+        run: |
+          echo "The Sleeper pull failed, so the site was rebuilt from the last good data."
+          exit 1

@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout idea: one white column. League name, one model switch, four tabs. Each tab leads with a heat table
+     you can read at arm's length; the soft-gray what-if panel sits under it, or beside it on wide screens. */
+  --page: #ffffff;         /* the whole page */
+  --soft: #f4f6f8;         /* what-if panel, detail drawers, quiet fills */
+  --ink: #14181d;          /* text */
+  --muted: #5d6772;        /* secondary text */
+  --line: #dfe4e9;         /* rules */
+  --accent: #1757ac;       /* taps, picks, your team */
+  --accent-soft: #e8f1fc;
+  --ramp-lo: #eef4fb;      /* odds ramp: more likely is darker */
+  --ramp-hi: #0e3d7e;
+  --up: #006c10;
+  --down: #b42318;
+  --font: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--page); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.45; }
+h1, h2, h3, h4, p, ul { margin: 0; }
+button, select { font: inherit; color: inherit; }
+button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+[hidden] { display: none !important; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 48px; }
+
+/* league header */
+.top { display: flex; flex-direction: column; gap: 8px; padding-bottom: 10px; }
+.toprow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+h1 { font-stretch: 70%; font-weight: 800; font-size: clamp(42px, 11vw, 68px); line-height: 0.92; letter-spacing: -0.01em; text-wrap: balance; }
+.subrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; }
+.meta { color: var(--muted); font-size: 13px; max-width: 58ch; }
+.basis { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.basis .seg { display: inline-grid; padding: 2px; border-radius: 8px; }
+.basis .seg button { min-height: 30px; padding: 3px 11px; border-radius: 6px; font-size: 13.5px; }
+.mine label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+select { border: 1px solid var(--line); border-radius: 8px; background: var(--page); color: var(--ink); padding: 6px 8px; font-weight: 600; font-size: 16px; font-stretch: 90%; min-height: 40px; max-width: 100%; }
+
+/* tabs: stay in view while you scroll */
+.bar { position: sticky; top: 0; z-index: 5; background: var(--page); border-bottom: 1px solid var(--line); }
+.tabs { display: flex; gap: 18px; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { all: unset; box-sizing: border-box; cursor: pointer; padding: 12px 1px 8px; border-bottom: 3px solid transparent; font-stretch: 82%; font-weight: 750; font-size: 18px; color: var(--muted); white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.tabs button:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; border-radius: 4px; }
+.tabs { align-items: flex-end; }
+.tabs #tab-method { margin-left: auto; font-stretch: 92%; font-weight: 600; font-size: 13.5px; padding-bottom: 10px; }   /* reference, so it sits quietly at the end */
+.reset { border: 1px solid var(--line); background: var(--page); border-radius: 8px; padding: 5px 10px; font-weight: 650; font-size: 13.5px; cursor: pointer; min-height: 34px; white-space: nowrap; }
+@media (hover: hover) { .reset:hover { border-color: var(--ink); } }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; padding-top: 18px; }
+#main, #extra { min-width: 0; scroll-margin-top: 58px; }
+@media (min-width: 940px) {
+  .grid { grid-template-columns: minmax(0, 1fr) 356px; grid-template-areas: "main side" "extra side"; column-gap: 36px; align-items: start; }
+  #main { grid-area: main; }
+  #extra { grid-area: extra; }
+  #whatif { grid-area: side; position: sticky; top: 62px; max-height: calc(100vh - 74px); overflow-y: auto; }
+  .grid.solo { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main"; }
+}
+.shead { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+h2 { font-stretch: 80%; font-weight: 800; font-size: 25px; line-height: 1.1; }
+.note { color: var(--muted); font-size: 13.5px; max-width: 66ch; }
+.shead .note { min-height: 1.45em; }
+.foot { margin-top: 10px; }
+
+/* your team */
+.me-card { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 4px; }
+.me-card .t { font-stretch: 86%; font-weight: 750; font-size: 16px; }
+.me-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; max-width: 400px; font-variant-numeric: tabular-nums; }
+.me-stats span { display: block; }
+.me-stats b { font-stretch: 85%; font-weight: 800; font-size: 21px; margin-right: 5px; }
+.me-stats small { display: block; color: var(--muted); font-size: 12.5px; }
+.me-stats .dl { font-size: 12.5px; }
+.me-line { font-size: 14px; color: var(--muted); }
+.me-line b { color: var(--ink); font-weight: 700; }
+.dl { font-style: normal; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dl.up { color: var(--up); }
+.dl.down { color: var(--down); }
+
+/* the heat tables */
+table.odds { border-collapse: collapse; width: 100%; table-layout: fixed; font-variant-numeric: tabular-nums; }
+table.odds col.c { width: 42px; }
+table.odds col.t { width: 140px; }
+table.odds thead th { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 0 6px; text-align: center; font-stretch: 88%; white-space: nowrap; }
+table.odds thead th.team { text-align: left; padding-left: 22px; }
+table.odds tbody tr.r > * { border-top: 1px solid var(--line); padding: 4px 0; vertical-align: middle; font-weight: 400; text-align: left; }
+table.odds tbody tr.r.cut > * { border-top: 2px solid var(--ink); }
+.tbtn { all: unset; box-sizing: border-box; position: relative; cursor: pointer; display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: center; column-gap: 6px; width: 100%; min-height: 44px; padding: 2px 18px 2px 0; }
+.tbtn::after { content: ""; position: absolute; right: 7px; top: 50%; width: 5px; height: 5px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: translateY(-70%) rotate(45deg); }
+.tbtn[aria-expanded="true"]::after { transform: translateY(-25%) rotate(-135deg); }
+.tbtn:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; border-radius: 6px; }
+.tbtn .rk { color: var(--muted); font-size: 12.5px; text-align: center; line-height: 1.1; }
+.tbtn .rk i { display: block; font-style: normal; font-size: 8px; color: var(--ink); }
+.nm { display: block; font-stretch: 84%; font-weight: 650; font-size: 14.5px; line-height: 1.15; overflow-wrap: anywhere; }
+@media (hover: hover) { .tbtn:hover .nm { text-decoration: underline; text-underline-offset: 3px; } }
+.sub { display: block; color: var(--muted); font-size: 12px; line-height: 1.3; font-stretch: 92%; overflow-wrap: anywhere; }
+.sub.to { color: var(--accent); font-weight: 600; }
+tr.me .tbtn .nm, tr.me .tbtn .rk { color: var(--accent); }
+tr.me .tbtn .rk { font-weight: 800; }
+.nm .s { display: none; }
+.chip { display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 1.5px; min-height: 36px; border-radius: 6px; font-stretch: 84%; font-weight: 700; font-size: 14px; line-height: 1.1; color: #000; cursor: default; }
+.chip.hi { color: #fff; }
+.chip.nil { background: transparent; color: var(--muted); font-weight: 500; }
+.chip .d { font-size: 10.5px; font-weight: 600; }
+.striph, .strip { display: grid; grid-template-columns: repeat(var(--n, 12), minmax(0, 1fr)); gap: 2px; }
+.striph span { font-size: 11px; font-weight: 600; color: var(--muted); text-align: center; }
+.stripg { display: grid; grid-template-columns: repeat(var(--n, 12), minmax(0, 1fr)); gap: 2px; margin-bottom: 4px; }
+.stripg span { padding-bottom: 2px; border-bottom: 1.5px solid var(--line); font-size: 10.5px; font-weight: 600; color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; }
+.cell { height: 36px; border-radius: 4px; background: var(--soft); display: flex; align-items: center; justify-content: center; font-stretch: 76%; font-weight: 700; font-size: 10.5px; color: #000; cursor: default; }
+.cell.hi { color: #fff; }
+tr.det > td { padding: 0 0 12px; }
+.detail { background: var(--soft); border-radius: 10px; padding: 14px 12px; display: flex; flex-direction: column; gap: 16px; }
+.dhead { display: flex; flex-direction: column; gap: 2px; }
+.dhead b { font-stretch: 86%; font-weight: 750; font-size: 17px; line-height: 1.2; }
+.dhead span { color: var(--muted); font-size: 13.5px; }
+.dgrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px 28px; }
+.dgrid > div { min-width: 0; }
+.detail h4 { font-size: 13.5px; font-weight: 700; margin-bottom: 6px; }
+table.mini { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+table.mini th, table.mini td { padding: 5px 0 5px 8px; text-align: right; border-top: 1px solid var(--line); font-weight: 400; }
+table.mini thead th { border-top: 0; padding-top: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
+table.mini th:first-child { text-align: left; padding-left: 0; }
+table.mini tbody th { font-weight: 650; }
+.detail .note { margin-top: 6px; }
+ul.swing { list-style: none; padding: 0; display: flex; flex-direction: column; }
+ul.swing li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+ul.swing li b { font-weight: 700; }
+ul.swing .v { white-space: nowrap; color: var(--muted); }
+ul.swing .v b { color: var(--ink); }
+svg.bars { width: 100%; height: auto; display: block; }
+svg.bars text { font-family: var(--font); font-size: 11.5px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+svg.bars text.v { fill: var(--ink); font-weight: 650; }
+svg.bars .bar { fill: var(--accent); }
+svg.bars .bar.out { fill: #8d98a3; }
+svg.bars .hit { fill: transparent; }
+svg.bars line { stroke: #c4ccd4; }
+
+/* lineups tab: one card per team; in a regular-season week each joined pair is a matchup */
+.wkseg { max-width: 420px; margin-bottom: 14px; }
+.lgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 8px; }
+.lgrid.pairs { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.lcard { border: 1px solid var(--line); border-radius: 10px; padding: 10px 8px 8px; min-width: 0; scroll-margin-top: 70px; }
+.pair .lcard { border: 0; border-radius: 0; }
+.pair .lcard + .lcard { border-left: 1px solid var(--line); }
+.lcard.me { background: var(--accent-soft); }
+.lhead { display: flex; flex-direction: column; gap: 1px; padding-bottom: 6px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.lname { font-stretch: 84%; font-weight: 700; font-size: 14px; line-height: 1.15; min-height: 2.3em; overflow-wrap: anywhere; }
+.ltot { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ltot b { font-stretch: 85%; font-weight: 800; font-size: 21px; color: var(--ink); margin-right: 4px; }
+.lsub { font-size: 12px; color: var(--muted); }
+.lrow { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 5px; align-items: baseline; padding: 2.5px 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.lrow .sl { color: var(--muted); font-size: 11px; font-stretch: 88%; }
+.lrow .pl { font-stretch: 88%; overflow-wrap: anywhere; }
+.lrow .pts { font-weight: 600; }
+.pl .s { display: none; }
+.fa { margin-left: 4px; padding: 0 3px; border: 1px solid currentColor; border-radius: 3px; font-size: 9.5px; font-weight: 700; color: var(--accent); vertical-align: 1px; cursor: default; }
+.ptab { margin-top: 32px; }
+table.pts thead th.team { padding-left: 0; }
+table.pts tr.me .nm { color: var(--accent); }
+
+/* who holds the picks: one column per round, darker = worth more, ringed = came in a trade */
+table.own { border-collapse: collapse; width: 100%; table-layout: fixed; }
+table.own col.c { width: 50px; }
+table.own th, table.own td { border-top: 1px solid var(--line); padding: 8px 0 3px; vertical-align: top; text-align: left; font-weight: 400; }
+table.own td { border-left: 1px solid var(--line); padding-left: 4px; padding-right: 3px; }
+table.own thead th { border-top: 0; border-left: 0; font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 0 6px 4px; font-stretch: 88%; }
+table.own thead th:first-child { padding-left: 0; }
+table.own tbody th { padding-right: 6px; }
+table.own tr.me .nm { color: var(--accent); }
+.cap { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.cap i { display: block; height: 5px; min-width: 2px; border-radius: 3px; background: var(--accent); }
+.pk { display: flex; align-items: center; justify-content: center; height: 22px; margin: 0 0 6px; border-radius: 5px; font-stretch: 80%; font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; color: #000; cursor: default; }
+.pk.hi { color: #fff; }
+.pk.got { outline: 1.5px solid var(--ink); outline-offset: 1px; }
+.none { display: block; text-align: center; color: var(--muted); font-size: 13px; line-height: 22px; }
+
+/* what-if panel */
+.whatif { background: var(--soft); border-radius: 14px; padding: 16px 12px; display: flex; flex-direction: column; gap: 12px; min-width: 0; scroll-margin-top: 58px; }
+.wihead { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 34px; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; padding: 3px; border-radius: 10px; background: #e6eaee; }
+.seg button { border: 0; background: transparent; border-radius: 7px; padding: 6px 8px; min-height: 36px; font-weight: 650; font-size: 14px; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.seg .cnt { background: var(--accent); color: #fff; border-radius: 99px; min-width: 18px; height: 18px; padding: 0 5px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+.games { display: flex; flex-direction: column; gap: 6px; }
+.game { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2px; }
+.side { border: 0; background: var(--page); cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 46px; padding: 4px 10px; text-align: left; border-radius: 9px 3px 3px 9px; }
+.side.b { flex-direction: row-reverse; text-align: right; border-radius: 3px 9px 9px 3px; }
+.side .nm { font-size: 14.5px; }
+.side .wp { flex: none; font-size: 13.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.side.fav .wp { color: var(--ink); font-weight: 700; }
+.side svg { flex: none; width: 16px; height: 16px; }
+.side.lost { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+@media (hover: hover) { .side:hover { box-shadow: inset 0 0 0 1.5px var(--ink); } }
+.side[aria-pressed="true"] { background: var(--accent); color: #fff; box-shadow: none; }
+.side.mine .nm::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: currentColor; vertical-align: 2px; }
+.changes { display: flex; flex-direction: column; gap: 4px; }
+.changes h3 { font-size: 14px; font-weight: 700; }
+.changes ul { list-style: none; padding: 0; display: flex; flex-direction: column; }
+.changes li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 12px; padding: 6px 0; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.changes .who b { display: block; font-stretch: 86%; font-weight: 650; font-size: 14.5px; line-height: 1.2; }
+.changes .who span { display: block; color: var(--muted); font-size: 12px; }
+.changes .vals { font-size: 14px; white-space: nowrap; text-align: right; }
+.changes .vals .dl { display: inline-block; min-width: 44px; margin-left: 8px; text-align: right; font-size: 13.5px; }
+.linkbtn { all: unset; cursor: pointer; color: var(--accent); font-weight: 650; font-size: 13.5px; text-decoration: underline; text-underline-offset: 3px; align-self: flex-start; padding: 6px 0; }
+.linkbtn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.linkbtn.inl { padding: 0; font-size: inherit; }
+
+/* how-it-works tab */
+.method { padding-top: 18px; display: flex; flex-direction: column; gap: 18px; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px 36px; }
+.cols h3 { font-size: 16px; font-weight: 750; margin-bottom: 6px; }
+.cols p, .cols li { font-size: 14.5px; max-width: 64ch; }
+.cols p + p { margin-top: 8px; }
+.cols ul { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.cols b { font-weight: 650; }
+table.cal { border-collapse: collapse; margin-top: 12px; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+table.cal th, table.cal td { padding: 3px 16px 3px 0; text-align: right; }
+table.cal th { font-weight: 600; color: var(--muted); font-size: 12.5px; }
+table.cal caption { text-align: left; font-weight: 650; padding-bottom: 4px; }
+footer { margin-top: 26px; color: var(--muted); font-size: 13px; max-width: 84ch; }
+#tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: #fff; padding: 6px 9px; border-radius: 7px; font-size: 13px; max-width: 240px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 359px) {
+  table.odds col.c { width: 40px; }
+  table.odds col.t { width: 112px; }
+  .chip { margin: 0 1px; }
+}
+@media (max-width: 374px) {             /* very narrow phones: short team names everywhere */
+  .nm .f { display: none; }
+  .nm .s { display: inline; }
+}
+@media (max-width: 400px) {
+  .tabs { gap: 14px; }
+  .tabs button { font-size: 17px; }
+}
+@media (max-width: 559px) {
+  .nm.tight .f, .pl .f { display: none; }   /* tight grids keep short names on a phone */
+  .nm.tight .s, .pl .s { display: inline; }
+  .tbtn .nm { font-size: 14px; font-stretch: 80%; }
+  .chip { font-size: 13.5px; }
+  table.pts .chip { font-size: 12.5px; }
+}
+@media (min-width: 560px) {
+  .wrap { padding: 28px 24px 56px; }
+  table.odds col.c { width: 64px; }
+  table.odds col.t { width: 236px; }
+  table.own col.c { width: 100px; }
+  .pk { display: inline-flex; width: 42px; margin-right: 5px; }
+  .tbtn { grid-template-columns: 20px minmax(0, 1fr); column-gap: 8px; }
+  table.odds thead th.team { padding-left: 28px; }
+  .nm { font-size: 15.5px; }
+  .chip { margin: 0 2px; font-size: 15px; }
+  .cell { font-size: 12px; font-stretch: 84%; }
+  .striph span { font-size: 12px; }
+  .detail { padding: 16px; }
+  .dgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dgrid > .wide { grid-column: 1 / -1; }
+  .whatif { padding: 18px 16px; }
+}
+@media (min-width: 760px) {
+  .lgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .lgrid.pairs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .lcard { padding: 12px 12px 10px; }
+  .lname { font-size: 15px; }
+  .lrow { grid-template-columns: 36px minmax(0, 1fr) auto; font-size: 13.5px; }
+}
+@media (min-width: 940px) {
+  .cols { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .totop { display: none; }               /* the what-if panel sits beside the table here */
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="toprow">
+      <h1>__LEAGUE__</h1>
+      <div class="mine"><label for="mine">Your team</label><select id="mine"></select></div>
+    </div>
+    <div class="subrow">
+      <p class="meta">__META__</p>
+      <div class="basis" id="basis">
+        <span id="basis-l">Rate teams by</span>
+        <span class="seg" role="group" aria-labelledby="basis-l">
+          <button type="button" id="blend-mix" data-blend="0.5" data-tip="Blend: half season scoring, half projected lineups. The default.">Blend</button>
+          <button type="button" id="blend-form" data-blend="0" data-tip="Season: only how each team has scored this year.">Season</button>
+          <button type="button" id="blend-proj" data-blend="1" data-tip="Projections: only Sleeper’s forecast for each team’s best lineup.">Projections</button>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <div class="bar">
+    <div class="tabs" role="tablist" aria-label="View">
+      <button type="button" role="tab" id="tab-playoffs" aria-controls="main" aria-selected="true">Playoffs</button>
+      <button type="button" role="tab" id="tab-draft" aria-controls="main" aria-selected="false">Draft picks</button>
+      <button type="button" role="tab" id="tab-lineups" aria-controls="main" aria-selected="false">Lineups</button>
+      <button type="button" role="tab" id="tab-method" aria-controls="method-panel" aria-selected="false">How it works</button>
+    </div>
+  </div>
+
+  <div class="grid" id="grid">
+    <section id="main" role="tabpanel" aria-labelledby="tab-playoffs"><p class="note">Running the simulations.</p></section>
+    <aside id="whatif" class="whatif" aria-label="What if"></aside>
+    <section id="extra" hidden></section>
+  </div>
+
+  <section class="method" id="method-panel" role="tabpanel" aria-labelledby="tab-method" hidden>
+    <h2 id="method-h">How it works</h2>
+    <div class="cols">
+__METHOD__
+    </div>
+  </section>
+
+  <footer>__FOOTER__</footer>
+</div>
+<div id="tip" role="tooltip" hidden></div>
+
+<script>
+__ENGINE__
+</script>
+<script>
+__MODEL__
+</script>
+<script>
+(function () {
+  'use strict';
+  var SNAP = __SNAPSHOT__;
+  var E = window.CPEngine, M = window.CPModel;
+  var N = 40000, SEED = 20261124, SWITCH = 0.68;   // SWITCH: where chip text turns white (keeps contrast above 4.5:1)
+  var T = SNAP.teams, n = T.length, L = SNAP.league, PT = L.playoffTeams, D = SNAP.draft;
+  var state = { picks: [], tab: 'playoffs', blend: SNAP.blend, open: -1, mine: -1, week: null, luWeek: null };
+  var cfg, baseCache = {}, base, cur, cl6, cl2, c06, c02, G = 0, orderNow = [], seedNow = [], gameRank = {}, pending = 0, stale = false;
+  var $ = function (id) { return document.getElementById(id); };
+  var TABS = ['playoffs', 'draft', 'lineups', 'method'];
+
+  /* ---------- small helpers ---------- */
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag), k;
+    if (attrs) for (k in attrs) {
+      var v = attrs[k];
+      if (v === null || v === undefined || v === false) continue;
+      if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v;
+      else if (k === 'bg') e.style.background = v;
+      else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), v); else e.setAttribute(k, v);
+    }
+    (kids || []).forEach(function (c) { if (c !== null && c !== undefined && c !== false) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function sv(tag, attrs) { var e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (var k in attrs) e.setAttribute(k, attrs[k]); return e; }
+  function pct(p, zero, one) {
+    if (one) return '100%';
+    if (zero) return '–';
+    if (p >= 0.995) return '>99%';
+    if (p < 0.005) return '<1%';
+    return Math.round(p * 100) + '%';
+  }
+  function pz(p) { return pct(p, p <= 0); }                 // dash when it never happened
+  function pct1(p) { return (p * 100).toFixed(1) + '%'; }
+  function poss(name) { return /[’']s$/.test(name) ? name : /s$/i.test(name) ? name + '’' : name + '’s'; }
+  function dpts(a, b) { return Math.round(b * 100) - Math.round(a * 100); }
+  function arrow(d) { return (d > 0 ? '▲' : '▼') + Math.abs(d) + '%'; }
+  function ord(k) { var s = ['th', 'st', 'nd', 'rd'], v = k % 100; return k + (s[(v - 20) % 10] || s[v] || s[0]); }
+  function pkLabel(r, s) { return r + '.' + (s < 10 ? '0' : '') + s; }
+  function plural(k, w) { return k + ' ' + w + (k === 1 ? '' : 's'); }
+  function rec(i) { return cfg.wins[i] + '-' + cfg.losses[i] + (cfg.ties[i] ? '-' + cfg.ties[i] : ''); }
+  function nPicks() { return state.picks.filter(Boolean).length; }
+  function anyPicks() { return state.picks.some(Boolean); }
+  // full team name wherever a team has its own row; "tight" grids fall back to the short name on a phone
+  function nameEl(i, tight) { return el('span', { class: 'nm' + (tight ? ' tight' : '') }, [el('span', { class: 'f', text: T[i].name }), el('span', { class: 's', text: T[i].short })]); }
+  function head(title, note, reset) {
+    var p = note ? el('p', { class: 'note' }, [note]) : null;
+    if (p && reset) { p.appendChild(document.createTextNode(' ')); p.appendChild(el('button', { type: 'button', class: 'linkbtn inl', 'data-k': 'reset1', text: 'Reset picks', onclick: resetPicks })); }
+    return el('div', { class: 'shead' }, [el('h2', { text: title }), p]);
+  }
+  function focusKey() { var a = document.activeElement; return a && a.getAttribute ? a.getAttribute('data-k') : null; }
+  function refocus(k) { if (!k) return; var e = document.querySelector('[data-k="' + k + '"]'); if (e) { try { e.focus({ preventScroll: true }); } catch (x) { e.focus(); } } }
+  function checkIcon() { var s = sv('svg', { viewBox: '0 0 16 16', 'aria-hidden': 'true' }); s.appendChild(sv('path', { d: 'M3 8.5l3.2 3.2L13 4.8', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })); return s; }
+
+  /* ---------- the odds ramp: one blue, light to dark, mixed in OKLCH ---------- */
+  var ramp = (function () {
+    var cs = getComputedStyle(document.documentElement);
+    function tok(name, fb) { var v = (cs.getPropertyValue(name) || '').trim(); return /^#[0-9a-f]{6}$/i.test(v) ? v : fb; }
+    function lin(c) { return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    function gam(c) { return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; }
+    function toLab(h) {
+      var r = lin(parseInt(h.slice(1, 3), 16) / 255), g = lin(parseInt(h.slice(3, 5), 16) / 255), b = lin(parseInt(h.slice(5, 7), 16) / 255);
+      var l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b), m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b), s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+      return [0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s, 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s];
+    }
+    function toRgb(Lc, a, b) {
+      var l = Math.pow(Lc + 0.3963377774 * a + 0.2158037573 * b, 3), m = Math.pow(Lc - 0.1055613458 * a - 0.0638541728 * b, 3), s = Math.pow(Lc - 0.0894841775 * a - 1.2914855480 * b, 3);
+      var c = [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s, -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s];
+      return 'rgb(' + c.map(function (x) { return Math.round(255 * Math.min(1, Math.max(0, gam(Math.max(0, x))))); }).join(',') + ')';
+    }
+    var A = toLab(tok('--ramp-lo', '#eef4fb')), B = toLab(tok('--ramp-hi', '#0e3d7e'));
+    var ca = Math.sqrt(A[1] * A[1] + A[2] * A[2]), cb = Math.sqrt(B[1] * B[1] + B[2] * B[2]), ha = Math.atan2(A[2], A[1]), dh = Math.atan2(B[2], B[1]) - ha, out = [];
+    if (dh > Math.PI) dh -= 2 * Math.PI; if (dh < -Math.PI) dh += 2 * Math.PI;
+    for (var k = 0; k <= 100; k++) { var p = k / 100, c = ca + (cb - ca) * p, h = ha + dh * p; out.push(toRgb(A[0] + (B[0] - A[0]) * p, c * Math.cos(h), c * Math.sin(h))); }
+    return out;
+  })();
+  function heat(t) { return ramp[Math.max(0, Math.min(100, Math.round(t * 100)))]; }
+  function chip(p, o) {
+    o = o || {};
+    var nil = !o.one && !!o.zero, v = o.one ? 1 : p;
+    var c = el('span', { class: 'chip' + (nil ? ' nil' : v >= SWITCH ? ' hi' : ''), bg: nil ? null : heat(v), 'data-tip': o.tip }, [pct(p, o.zero, o.one)]);
+    if (o.delta) c.appendChild(el('span', { class: 'd', text: arrow(o.delta) }));
+    return c;
+  }
+
+  /* ---------- who holds which pick: OWN[round][original team] = holder ---------- */
+  var OWN = (function () {
+    var idx = {}, own = [], r;
+    T.forEach(function (t, i) { idx[t.rid] = i; });
+    for (r = 1; r <= D.rounds; r++) own[r] = T.map(function (t, i) { return i; });
+    D.traded.forEach(function (x) { if (own[x[0]] && idx[x[1]] !== undefined && idx[x[2]] !== undefined) own[x[0]][idx[x[1]]] = idx[x[2]]; });
+    return own;
+  })();
+
+  /* ---------- numbers ---------- */
+  function compute() {
+    cfg = M.buildConfig(SNAP, state.blend); G = cfg.games.length;
+    if (state.picks.length !== G) state.picks = new Array(G).fill(0);
+    var key = String(state.blend), fresh = !baseCache[key];
+    if (fresh) baseCache[key] = E.simulate(cfg, [], N, SEED);
+    base = baseCache[key];
+    cur = anyPicks() ? E.simulate(cfg, state.picks, N, SEED) : base;
+    cl6 = E.clinch(cfg, state.picks, PT); cl2 = E.clinch(cfg, state.picks, 2);
+    c06 = E.clinch(cfg, [], PT); c02 = E.clinch(cfg, [], 2);
+    orderNow = E.seedOrder(cfg.wins, cfg.ties, cfg.pf, cfg.pa); seedNow = new Array(n);
+    orderNow.forEach(function (i, k) { seedNow[i] = k; });
+    // open games, biggest stakes first: how far each result moves playoff and bye odds (or the top of the draft) across the league
+    function ranked(keys, wts) {
+      var imp = cfg.games.map(function (g, gi) {
+        var wa = base.levWA[gi], wb = base.levWB[gi], s = 0;
+        if (!(wa > 0) || !(wb > 0)) return 0;
+        for (var i = 0; i < n; i++) for (var k = 0; k < keys.length; k++) s += wts[k] * Math.abs(base[keys[k] + 'A'][gi][i] / wa - base[keys[k] + 'B'][gi][i] / wb);
+        return s;
+      });
+      return cfg.games.map(function (g, gi) { return gi; }).sort(function (x, y) { return cfg.games[x].week - cfg.games[y].week || imp[y] - imp[x] || x - y; });
+    }
+    gameRank = { playoffs: ranked(['levP', 'levB'], [1, 1]), draft: ranked(['levT', 'levS'], [1, 0.05]) };   // draft tab: top-three odds first, slots as the tiebreak
+  }
+  function P(res, key, i) { return res[key][i] / res.wsum; }
+  function slotP(res, i, s) { return res.slotDist[i][s] / res.wsum; }
+  function top3(res, i) { return (res.slotDist[i][0] + res.slotDist[i][1] + res.slotDist[i][2]) / res.wsum; }
+  function meanSlot(res, i) { return res.slotSum[i] / res.wsum; }
+  function projOrder(res) { var o = []; for (var i = 0; i < n; i++) o.push(i); o.sort(function (x, y) { return res.slotSum[x] - res.slotSum[y] || seedNow[y] - seedNow[x]; }); return o; }
+  function rankOf(order) { var r = new Array(n); order.forEach(function (i, k) { r[i] = k + 1; }); return r; }
+  function flags(key, i, c6, c2) {      // certain / ruled out, from win-loss arithmetic rather than the simulation
+    var out = c6.eliminated[i];
+    if (key === 'playoff') return { one: c6.clinched[i], zero: out };
+    if (key === 'bye') return { one: c2.clinched[i], zero: out || c2.eliminated[i] };
+    if (key === 'semi') return { one: c2.clinched[i], zero: out };
+    return { one: false, zero: out };
+  }
+  // what a cell shows: only the playoff column says "<1%" for a long shot that never came up in the runs
+  function shown(res, key, i, c6, c2) {
+    var f = flags(key, i, c6, c2), p = P(res, key, i);
+    return { p: f.one ? 1 : f.zero ? 0 : p, one: f.one, zero: f.zero || (!f.one && key !== 'playoff' && p <= 0), ruledOut: f.zero };
+  }
+
+  /* ---------- top bar ---------- */
+  function renderBar() {
+    TABS.forEach(function (t) { $('tab-' + t).setAttribute('aria-selected', String(state.tab === t)); });
+    var sel = $('mine');
+    if (!sel.options.length) {
+      sel.appendChild(el('option', { value: '-1', text: 'Pick your team' }));
+      T.forEach(function (t, i) { sel.appendChild(el('option', { value: String(i), text: t.short })); });
+    }
+    sel.value = String(state.mine);
+    var seg = document.querySelectorAll('#basis button');
+    for (var i = 0; i < seg.length; i++) seg[i].setAttribute('aria-pressed', String(Number(seg[i].getAttribute('data-blend')) === state.blend));
+  }
+
+  /* ---------- your team ---------- */
+  function mineCard() {
+    var i = state.mine, picks = anyPicks(), card = el('div', { class: 'me-card' }, [el('span', { class: 't', text: T[i].name })]);
+    if (state.tab === 'playoffs') {
+      if (cl6.eliminated[i]) { card.appendChild(el('p', { class: 'me-line', text: 'Out of the playoff race. The Draft picks tab shows where their pick lands.' })); return card; }
+      var stats = el('div', { class: 'me-stats' });
+      [['playoff', 'playoffs'], ['bye', 'bye'], ['champ', 'title']].forEach(function (c) {
+        if (c[0] === 'bye' && PT !== 6) return;
+        var x = shown(cur, c[0], i, cl6, cl2), d = picks ? dpts(shown(base, c[0], i, c06, c02).p, x.p) : 0;
+        stats.appendChild(el('span', null, [el('b', { text: pct(x.p, x.zero, x.one) }), d ? el('i', { class: 'dl ' + (d > 0 ? 'up' : 'down'), text: arrow(d) }) : null, el('small', { text: c[1] })]));
+      });
+      card.appendChild(stats);
+    } else {
+      var rk = rankOf(projOrder(cur)), owner = OWN[1][i], t3 = top3(cur, i), held = [];
+      card.appendChild(el('p', { class: 'me-line' }, ['Their first-round pick projects ', el('b', { text: ord(rk[i]) }),
+        owner !== i ? ' and belongs to ' + T[owner].name + '.' : t3 >= 0.005 ? ', with a ' + pct(t3) + ' chance at a top-three pick.' : '.']));
+      for (var r = 1; r <= D.rounds; r++) for (var t = 0; t < n; t++) if (OWN[r][t] === i) held.push({ r: r, s: rk[t], t: t });
+      held.sort(function (x, y) { return x.r - y.r || x.s - y.s; });
+      card.appendChild(el('p', { class: 'me-line', text: held.length ? 'Picks they hold: ' + held.map(function (h) { return pkLabel(h.r, h.s) + (h.t !== i ? ' (from ' + T[h.t].short + ')' : ''); }).join(', ') + '.' : 'They hold no ' + D.season + ' picks.' }));
+    }
+    return card;
+  }
+
+  /* ---------- playoff table ---------- */
+  var COLS = [['playoff', 'Playoffs', 'Make the playoffs'], ['bye', 'Bye', 'Finish in the top two and skip the first round'], ['semi', 'Semis', 'Reach the semifinals'], ['fin', 'Final', 'Reach the final'], ['champ', 'Title', 'Win the title']];
+  function playoffTable(host) {
+    var picks = anyPicks(), cols = COLS.filter(function (c) { return c[0] !== 'bye' || PT === 6; });
+    host.appendChild(head('Playoff odds', picks ? 'With your ' + plural(nPicks(), 'pick') + '.' : 'Tap a team for more.', picks));
+    var cg = el('colgroup', null, [el('col')]), hr = el('tr', null, [el('th', { scope: 'col', class: 'team', text: 'Team' })]), body = el('tbody');
+    cols.forEach(function (c) { cg.appendChild(el('col', { class: 'c' })); hr.appendChild(el('th', { scope: 'col', 'data-tip': c[2], text: c[1] })); });
+    orderNow.forEach(function (i, pos) {
+      var tr = el('tr', { class: 'r' + (pos === PT ? ' cut' : '') + (i === state.mine ? ' me' : '') });
+      tr.appendChild(el('th', { scope: 'row' }, [el('button', { class: 'tbtn', type: 'button', 'data-k': 't' + i, 'aria-expanded': String(state.open === i), onclick: function () { toggleOpen(i); } },
+        [el('span', { class: 'rk', text: String(pos + 1) }), el('span', null, [nameEl(i), el('span', { class: 'sub', text: rec(i) + ', ' + T[i].mgr })])])]));
+      cols.forEach(function (c) {
+        var x = shown(cur, c[0], i, cl6, cl2), b = shown(base, c[0], i, c06, c02);
+        var say = function (v) { return v.one ? 'certain' : v.ruledOut ? 'ruled out' : v.p <= 0 ? 'never in ' + N.toLocaleString('en-US') + ' runs' : pct1(v.p); };
+        var tip = T[i].short + ', ' + c[2].toLowerCase() + ': ' + say(x) + (picks ? ' (' + say(b) + ' today)' : '');
+        tr.appendChild(el('td', { 'aria-label': tip }, [chip(x.p, { zero: x.zero, one: x.one, tip: tip, delta: picks ? dpts(b.p, x.p) : 0 })]));
+      });
+      body.appendChild(tr);
+      if (state.open === i) body.appendChild(el('tr', { class: 'det' }, [el('td', { colspan: String(cols.length + 1) }, [detailPlayoffs(i)])]));
+    });
+    host.appendChild(el('table', { class: 'odds' }, [cg, el('thead', null, [hr]), body]));
+    
+  }
+
+  /* ---------- draft table ---------- */
+  function draftTable(host) {
+    var picks = anyPicks(), ordC = projOrder(cur), rB = rankOf(projOrder(base));
+    host.appendChild(head(D.season + ' draft order', picks ? 'With your ' + plural(nPicks(), 'pick') + '.' : 'Where each first-round pick is likely to land.', picks));
+    var sh = el('div', { class: 'striph', 'aria-hidden': 'true' }), grp = el('div', { class: 'stripg', 'aria-hidden': 'true' }), body = el('tbody'), s, b0 = n - PT;
+    var g1 = el('span', { text: 'Miss the playoffs' }), g2 = el('span', { text: 'By playoff finish' });
+    g1.style.gridColumn = 'span ' + b0; g2.style.gridColumn = 'span ' + PT; grp.appendChild(g1); grp.appendChild(g2);
+    for (s = 1; s <= n; s++) sh.appendChild(el('span', { text: String(s) }));
+    ordC.forEach(function (i, k) {
+      var owner = OWN[1][i], strip = el('div', { class: 'strip' }), best = 0, d = picks ? rB[i] - (k + 1) : 0;
+      for (var j = 0; j < n; j++) {
+        var p = slotP(cur, i, j), v = Math.round(p * 100); if (v >= 100 && p < 1) v = 99;
+        if (p > slotP(cur, i, best)) best = j;
+        var t = 0.1 + 0.9 * p, tip = T[i].short + ' pick lands ' + ord(j + 1) + ': ' + (p > 0 ? pct1(p) : 'never in ' + N.toLocaleString('en-US') + ' runs');
+        strip.appendChild(p > 0 ? el('span', { class: 'cell' + (t >= SWITCH ? ' hi' : ''), bg: heat(t), 'data-tip': tip }, [p >= 0.005 ? String(v) : '']) : el('span', { class: 'cell', 'data-tip': tip }));
+      }
+      var tr = el('tr', { class: 'r' + (i === state.mine || owner === state.mine ? ' me' : '') });
+      tr.appendChild(el('th', { scope: 'row' }, [el('button', { class: 'tbtn', type: 'button', 'data-k': 't' + i, 'aria-expanded': String(state.open === i), onclick: function () { toggleOpen(i); } },
+        [el('span', { class: 'rk', 'data-tip': d ? 'Projected ' + ord(rB[i]) + ' before your picks' : null }, [String(k + 1), d ? el('i', { 'aria-label': d > 0 ? 'moved earlier' : 'moved later', text: d > 0 ? '▲' : '▼' }) : null]), el('span', null, [nameEl(i),
+          owner !== i ? el('span', { class: 'sub to', text: 'to ' + T[owner].short }) : el('span', { class: 'sub', text: rec(i) })])])]));
+      tr.appendChild(el('td', { 'aria-label': 'Most likely ' + ord(best + 1) + ', ' + pct(slotP(cur, i, best)) }, [strip]));
+      body.appendChild(tr);
+      if (state.open === i) body.appendChild(el('tr', { class: 'det' }, [el('td', { colspan: '2' }, [detailDraft(i)])]));
+    });
+    var tb = el('table', { class: 'odds' }, [el('colgroup', null, [el('col', { class: 't' }), el('col')]),
+      el('thead', null, [el('tr', null, [el('th', { scope: 'col', class: 'team', text: 'Pick from' }), el('th', { scope: 'col' }, [grp, sh])])]), body]);
+    tb.style.setProperty('--n', String(n));
+    host.appendChild(tb);
+    host.appendChild(el('p', { class: 'note foot', text: '“to” marks a traded pick.' }));
+  }
+
+  /* ---------- who holds the picks ---------- */
+  function renderExtra() {
+    var host = $('extra'); host.textContent = ''; host.hidden = state.tab !== 'draft';
+    if (state.tab !== 'draft') return;
+    var rk = rankOf(projOrder(cur)), rows = [], o, r, t;
+    for (o = 0; o < n; o++) {
+      var per = [], first = Infinity, cnt = 0;
+      for (r = 1; r <= D.rounds; r++) {
+        var list = [];
+        for (t = 0; t < n; t++) if (OWN[r][t] === o) { list.push({ t: t, s: rk[t] }); first = Math.min(first, (r - 1) * n + rk[t]); cnt++; }
+        list.sort(function (x, y) { return x.s - y.s; }); per.push(list);
+      }
+      rows.push({ o: o, per: per, first: first, cnt: cnt });
+    }
+    rows.sort(function (x, y) { return x.first - y.first || x.o - y.o; });
+    var val = function (r, slot) { return 100 * Math.pow(0.5, ((r - 1) * n + slot - 1) / n); }, top = 0;   // rough scale: 1.01 counts 100, value halves each round
+    rows.forEach(function (row) { row.cap = 0; row.per.forEach(function (list, ri) { list.forEach(function (x) { row.cap += val(ri + 1, x.s); }); }); top = Math.max(top, row.cap); });
+    rows.sort(function (x, y) { return y.cap - x.cap || x.first - y.first; });
+    host.appendChild(head('Who holds the picks', 'Darker picks are worth more. Ringed picks came in a trade.'));
+    var cg = el('colgroup', null, [el('col')]), hr = el('tr', null, [el('th', { scope: 'col', text: 'Team and value' })]), body = el('tbody');
+    for (r = 1; r <= D.rounds; r++) { cg.appendChild(el('col', { class: 'c' })); hr.appendChild(el('th', { scope: 'col', text: 'Rd ' + r })); }
+    rows.forEach(function (row) {
+      var bar = el('i'); bar.style.width = Math.round(56 * row.cap / top) + 'px';
+      var tr = el('tr', { class: row.o === state.mine ? 'me' : null }, [el('th', { scope: 'row' }, [nameEl(row.o), el('span', { class: 'cap', 'data-tip': plural(row.cnt, 'pick') + ', draft value ' + Math.round(row.cap) }, [bar, String(Math.round(row.cap))])])]);
+      row.per.forEach(function (list, ri) {
+        var td = el('td');
+        if (!list.length) td.appendChild(el('span', { class: 'none', text: '–' }));
+        list.forEach(function (x) {
+          var t = val(ri + 1, x.s) / 100;
+          td.appendChild(el('span', { class: 'pk' + (t >= SWITCH ? ' hi' : '') + (x.t !== row.o ? ' got' : ''), bg: heat(t), 'data-tip': 'Pick ' + pkLabel(ri + 1, x.s) + (x.t !== row.o ? ', from ' + T[x.t].name : ', their own') + '. Value ' + Math.round(val(ri + 1, x.s)) }, [pkLabel(ri + 1, x.s)]));
+        });
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    host.appendChild(el('table', { class: 'own' }, [cg, el('thead', null, [hr]), body]));
+    
+  }
+
+  /* ---------- team drawers ---------- */
+  function ownTable(i, colsDef) {
+    var mine = []; cfg.games.forEach(function (g, gi) { if (g.a === i || g.b === i) mine.push(gi); });
+    var left = mine.length, wrap = el('div');
+    if (!left) { wrap.appendChild(el('p', { class: 'note', text: 'No regular-season games left.' })); return wrap; }
+    var names = left === 2 ? ['Lose both', 'Split', 'Win both'] : left === 1 ? ['Lose', 'Win'] : null;
+    var hr = el('tr', null, [el('th', { scope: 'col', text: 'Rest of season' }), el('th', { scope: 'col', text: 'Chance' })]), body = el('tbody');
+    colsDef.forEach(function (c) { hr.appendChild(el('th', { scope: 'col', text: c[0] })); });
+    for (var k = left; k >= 0; k--) {
+      var w = cur.ownW[i][k], share = w / cur.wsum; if (share < 0.0005) continue;
+      var tr = el('tr', null, [el('th', { scope: 'row', text: names ? names[k] : 'Go ' + k + '-' + (left - k) }), el('td', { text: share > 0.99995 ? '100%' : pct(share) })]);
+      colsDef.forEach(function (c) { tr.appendChild(el('td', { text: c[1](k, w) })); });
+      body.appendChild(tr);
+    }
+    wrap.appendChild(el('table', { class: 'mini' }, [el('thead', null, [hr]), body]));
+    wrap.appendChild(el('p', { class: 'note', text: mine.map(function (gi) {
+      var g = cfg.games[gi], home = g.a === i, opp = home ? g.b : g.a, pick = state.picks[gi];
+      var pa = E.winProb(cfg.rel[g.week][g.a], cfg.rel[g.week][g.b], cfg.sigma, cfg.v[g.a], cfg.v[g.b]);
+      return 'Week ' + g.week + ' vs ' + T[opp].short + ' (' + (pick ? (pick === (home ? 1 : 2) ? 'picked to win' : 'picked to lose') : pct(home ? pa : 1 - pa) + ' to win') + ')';
+    }).join(', ') + '.' }));
+    return wrap;
+  }
+  function swings(i, keyA, keyB, minD) {
+    var rows = [];
+    cfg.games.forEach(function (g, gi) {
+      if (state.picks[gi] || g.a === i || g.b === i) return;
+      var wa = cur.levWA[gi], wb = cur.levWB[gi];
+      if (wa / cur.wsum < 0.01 || wb / cur.wsum < 0.01) return;
+      var a = cur[keyA][gi][i] / wa, b = cur[keyB][gi][i] / wb;
+      rows.push({ g: g, a: a, b: b, d: Math.abs(a - b) });
+    });
+    rows.sort(function (x, y) { return y.d - x.d; });
+    return rows.filter(function (r) { return r.d >= minD; }).slice(0, 4);
+  }
+  function swingList(rows, lowerIsBetter, fmt, empty) {
+    rows = rows.filter(function (r) { return fmt(r.a) !== fmt(r.b); });      // skip swings too small to show
+    if (!rows.length) return el('p', { class: 'note', text: empty });
+    var ul = el('ul', { class: 'swing' });
+    rows.slice(0, 3).forEach(function (r) {
+      var aBetter = lowerIsBetter ? r.a <= r.b : r.a >= r.b, w = aBetter ? r.g.a : r.g.b, l = aBetter ? r.g.b : r.g.a;
+      ul.appendChild(el('li', null, [el('span', null, ['Week ' + r.g.week + ': ', el('b', { text: T[w].short }), ' over ' + T[l].short]),
+        el('span', { class: 'v' }, [el('b', { text: fmt(aBetter ? r.a : r.b) }), ' if so, ' + fmt(aBetter ? r.b : r.a) + ' if not'])]));
+    });
+    return ul;
+  }
+  function bars(vals, labels, o) {
+    var m = vals.length, step = 46, bw = 30, W = Math.max(m * step, 138), H = 132, padB = 22, padT = 18, max = Math.max.apply(null, vals.concat([0.05]));
+    var s = sv('svg', { class: 'bars', viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': o.aria });
+    s.style.maxWidth = W + 'px';
+    s.appendChild(sv('line', { x1: 0, x2: W, y1: H - padB + 0.5, y2: H - padB + 0.5 }));
+    vals.forEach(function (v, j) {
+      var x = j * step + (step - bw) / 2, h = v > 0 ? Math.max(2, (H - padB - padT) * v / max) : 0, y = H - padB - h, r = Math.min(4, h), tip = o.tip(j) + ': ' + (v > 0 ? pct1(v) : 'never');
+      s.appendChild(sv('rect', { class: 'hit', x: j * step, y: 0, width: step, height: H - padB, 'data-tip': tip }));
+      if (h > 0) s.appendChild(sv('path', { class: 'bar' + (o.muted && o.muted(j) ? ' out' : ''), 'data-tip': tip, d: 'M' + x + ' ' + (y + h) + 'V' + (y + r) + 'a' + r + ' ' + r + ' 0 0 1 ' + r + ' -' + r + 'h' + (bw - 2 * r) + 'a' + r + ' ' + r + ' 0 0 1 ' + r + ' ' + r + 'V' + (y + h) + 'z' }));
+      if (v > 0) { var tv = sv('text', { class: 'v', x: x + bw / 2, y: y - 5, 'text-anchor': 'middle' }); tv.textContent = v < 0.005 ? '<1%' : Math.round(v * 100) + '%'; s.appendChild(tv); }
+      var tl = sv('text', { x: x + bw / 2, y: H - 6, 'text-anchor': 'middle' }); tl.textContent = labels[j]; s.appendChild(tl);
+    });
+    return s;
+  }
+  function lineupLink(i) { return el('button', { type: 'button', class: 'linkbtn', 'data-k': 'lu' + i, text: 'See their projected lineup', onclick: function () { showLineup(i); } }); }
+  function pathTable(i) {       // the bracket decides picks past the lottery, so show each finish and the slot it brings
+    var b0 = n - PT, sum = function (a, b) { var t = 0; for (var k = a; k <= b; k++) t += slotP(cur, i, k - 1); return t; }, body = el('tbody');
+    [['Miss the playoffs', '1-' + b0, sum(1, b0)], ['Lose in the first round', (b0 + 1) + ' or ' + (b0 + 2), sum(b0 + 1, b0 + 2)], ['Lose in the semifinals', (b0 + 3) + ' or ' + (b0 + 4), sum(b0 + 3, b0 + 4)],
+      ['Lose the final', String(b0 + 5), sum(b0 + 5, b0 + 5)], ['Win the title', String(b0 + 6), sum(b0 + 6, b0 + 6)]].forEach(function (r) {
+      body.appendChild(el('tr', null, [el('th', { scope: 'row', text: r[0] }), el('td', { text: r[1] }), el('td', { text: pz(r[2]) })]));
+    });
+    return el('table', { class: 'mini' }, [el('thead', null, [el('tr', null, [el('th', { scope: 'col', text: 'Their season' }), el('th', { scope: 'col', text: 'Pick' }), el('th', { scope: 'col', text: 'Chance' })])]), body]);
+  }
+  function detailPlayoffs(i) {
+    var box = el('div', { class: 'detail' }), pfRank = 1, p = P(cur, 'playoff', i), k;
+    for (k = 0; k < n; k++) if (cfg.pf[k] > cfg.pf[i]) pfRank++;
+    box.appendChild(el('div', { class: 'dhead' }, [el('b', { text: T[i].name }), el('span', { text: rec(i) + ', ' + ord(seedNow[i] + 1) + ' in the standings. ' + cfg.pf[i].toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' points for, ' + (pfRank === 1 ? 'the most' : ord(pfRank) + ' most') + ' in the league.' })]));
+    if (cl6.eliminated[i]) {
+      box.appendChild(el('p', { class: 'note', text: 'Out of the playoff race. The Draft picks tab shows where their pick lands.' }));
+      box.appendChild(lineupLink(i));
+      return box;
+    }
+    var grid = el('div', { class: 'dgrid' });
+    grid.appendChild(el('div', null, [el('h4', { text: 'By their own results' }), ownTable(i, [
+      ['Playoffs', function (kk, w) { return pct(cur.ownP[i][kk] / w, false, cl6.clinched[i]); }],
+      ['Title', function (kk, w) { return pz(cur.ownC[i][kk] / w); }]])]));
+    var vals = [], out = 0, labels = [];
+    for (k = 0; k < n; k++) { var q = cur.seedDist[i][k] / cur.wsum; if (k < PT) { vals.push(q); labels.push(String(k + 1)); } else out += q; }
+    vals.push(out); labels.push('Out');
+    grid.appendChild(el('div', null, [el('h4', { text: 'Where they finish' }), bars(vals, labels, { aria: 'Chance of each final seed for ' + T[i].name, tip: function (j) { return j < PT ? ord(j + 1) + ' seed' : 'Miss the playoffs'; }, muted: function (j) { return j === PT; } })]));
+    var m = !cl6.clinched[i] && !cl6.eliminated[i] && p > 0.01 && p < 0.99 ? ['levPA', 'levPB', 'playoff odds'] : !cl6.eliminated[i] && P(cur, 'champ', i) >= 0.005 ? ['levCA', 'levCB', 'title odds'] : null;
+    grid.appendChild(el('div', { class: 'wide' }, [el('h4', { text: m ? 'Other games that move their ' + m[2] : 'Other games' }),
+      m ? swingList(swings(i, m[0], m[1], 0.01), false, function (x) { return pct(x); }, 'No other open game moves their ' + m[2] + ' by a full point.')
+        : el('p', { class: 'note', text: 'Nothing left to settle in the open games.' })]));
+    box.appendChild(grid);
+    box.appendChild(lineupLink(i));
+    return box;
+  }
+  function detailDraft(i) {
+    var box = el('div', { class: 'detail' }), owner = OWN[1][i], lo = n, hi = -1, vals = [], labels = [], k;
+    var p1 = slotP(cur, i, 0), p3 = top3(cur, i), lot = 1 - P(cur, 'playoff', i), topN = 'Top ' + (n - PT);
+    box.appendChild(el('div', { class: 'dhead' }, [el('b', { text: poss(T[i].name) + ' first-round pick' }),
+      el('span', { text: (owner !== i ? 'Held by ' + T[owner].name + '. ' : '') + 'Average slot ' + meanSlot(cur, i).toFixed(1) + '.'
+        + (p1 >= 0.005 ? ' First-pick odds ' + pct(p1) + '.' : '') + (p3 >= 0.005 ? ' Top-three odds ' + pct(p3) + '.' : lot >= 0.005 ? ' ' + topN + ' odds ' + pct(lot) + '.' : '') })]));
+    for (k = 0; k < n; k++) if (slotP(cur, i, k) >= 0.005) { lo = Math.min(lo, k); hi = Math.max(hi, k); }
+    for (k = lo; k <= hi; k++) { vals.push(slotP(cur, i, k)); labels.push(String(k + 1)); }
+    var grid = el('div', { class: 'dgrid' });
+    grid.appendChild(el('div', null, [el('h4', { text: 'Where it lands' }), bars(vals, labels, { aria: 'Chance of each draft slot for this pick', tip: function (j) { return ord(lo + j + 1) + ' pick'; } })]));
+    if (PT === 6) grid.appendChild(el('div', null, [el('h4', { text: 'What decides the slot' }), pathTable(i)]));
+    var ownCols = [['Avg slot', function (kk, w) { return (cur.ownS[i][kk] / w).toFixed(1); }]];
+    if (p3 >= 0.005) ownCols.push(['Top three', function (kk, w) { return pz(cur.ownT[i][kk] / w); }]);
+    else if (lot >= 0.005) ownCols.push([topN, function (kk, w) { return pz(1 - cur.ownP[i][kk] / w); }]);
+    grid.appendChild(el('div', null, [el('h4', { text: 'By ' + poss(T[i].short) + ' own results' }), ownTable(i, ownCols)]));
+    grid.appendChild(el('div', { class: 'wide' }, [el('h4', { text: 'Other games that move it earlier' }),
+      swingList(swings(i, 'levSA', 'levSB', 0.1), true, function (x) { return 'slot ' + x.toFixed(1); }, 'No other open game moves this pick by much.')]));
+    box.appendChild(grid);
+    return box;
+  }
+
+  /* ---------- lineups tab ---------- */
+  function abbr(name) { var p = name.split(' '); return p.length < 2 ? name : p[0].charAt(0) + '. ' + p.slice(1).join(' '); }
+  function lineupCard(i, wk, opp, pWin) {
+    var rid = T[i].rid, card = el('div', { class: 'lcard' + (i === state.mine ? ' me' : ''), id: 'lu-' + rid });
+    card.appendChild(el('div', { class: 'lhead' }, [el('span', { class: 'lname', text: T[i].name }), el('span', { class: 'ltot' }, [el('b', { text: SNAP.proj[wk][rid].toFixed(1) }), 'points']),
+      el('span', { class: 'lsub', text: opp >= 0 ? pct(pWin) + ' to beat ' + T[opp].short : rec(i) + ', ' + ord(seedNow[i] + 1) + ' in the standings' })]));
+    SNAP.lineups[wk][rid].forEach(function (r) {
+      var name = r[1].replace(' (free agent)', '');
+      card.appendChild(el('div', { class: 'lrow' }, [el('span', { class: 'sl', text: r[0] }),
+        el('span', { class: 'pl' }, [el('span', { class: 'f', text: name }), el('span', { class: 's', text: abbr(name) }), r[3] ? el('span', { class: 'fa', 'data-tip': 'A free agent the model assumes gets added to fill an empty slot', text: 'FA' }) : null]),
+        el('span', { class: 'pts', text: r[2].toFixed(1) })]));
+    });
+    return card;
+  }
+  function projTable(host) {
+    var weeks = Object.keys(SNAP.proj).sort(function (a, b) { return a - b; }), lo = Infinity, hi = -Infinity;
+    weeks.forEach(function (w) { T.forEach(function (t) { var x = SNAP.proj[w][t.rid]; if (x < lo) lo = x; if (x > hi) hi = x; }); });
+    var cg = el('colgroup', null, [el('col')]), hr = el('tr', null, [el('th', { scope: 'col', class: 'team', text: 'Team' })]), body = el('tbody');
+    weeks.forEach(function (w) { cg.appendChild(el('col', { class: 'c' })); hr.appendChild(el('th', { scope: 'col', text: 'Wk ' + w })); });
+    orderNow.forEach(function (i) {
+      var tr = el('tr', { class: 'r' + (i === state.mine ? ' me' : '') }, [el('th', { scope: 'row' }, [nameEl(i, true), el('span', { class: 'sub', text: 'avg ' + (cfg.pf[i] / Math.max(1, cfg.form.games[i])).toFixed(1) })])]);
+      weeks.forEach(function (w) {
+        var x = SNAP.proj[w][T[i].rid], t = hi > lo ? (x - lo) / (hi - lo) : 0.5;
+        tr.appendChild(el('td', null, [el('span', { class: 'chip' + (t >= SWITCH ? ' hi' : ''), bg: heat(t) }, [x.toFixed(1)])]));
+      });
+      body.appendChild(tr);
+    });
+    host.appendChild(el('div', { class: 'ptab' }, [head('Projected points by week', 'Season average in gray.'),
+      el('table', { class: 'odds pts' }, [cg, el('thead', null, [hr]), body])]));
+  }
+  function lineupsTab(host) {
+    var weeks = Object.keys(SNAP.lineups || {}).sort(function (a, b) { return a - b; });
+    host.appendChild(head('Projected lineups', 'Each team’s best nine by Sleeper’s projections.'));
+    if (!weeks.length) return;
+    if (weeks.indexOf(state.luWeek) < 0) state.luWeek = weeks[0];
+    var wk = state.luWeek, seg = el('div', { class: 'seg wkseg', role: 'group', 'aria-label': 'Week' }), anyFa = false;
+    weeks.forEach(function (w) { seg.appendChild(el('button', { type: 'button', 'data-k': 'lw' + w, 'aria-pressed': String(w === wk), text: 'Week ' + w, onclick: function () { state.luWeek = w; renderMain(); } })); });
+    host.appendChild(seg);
+    var games = gameRank.playoffs.filter(function (gi) { return String(cfg.games[gi].week) === wk; }), grid = el('div', { class: 'lgrid' + (games.length ? ' pairs' : '') });
+    var mineIn = function (gi) { return cfg.games[gi].a === state.mine || cfg.games[gi].b === state.mine ? 1 : 0; };
+    games.sort(function (x, y) { return mineIn(y) - mineIn(x); });                   // your own matchup first
+    if (games.length) games.forEach(function (gi) {
+      var g = cfg.games[gi], pa = E.winProb(cfg.rel[g.week][g.a], cfg.rel[g.week][g.b], cfg.sigma, cfg.v[g.a], cfg.v[g.b]);
+      grid.appendChild(el('div', { class: 'pair' }, [lineupCard(g.a, wk, g.b, pa), lineupCard(g.b, wk, g.a, 1 - pa)]));
+    });
+    else orderNow.forEach(function (i) { grid.appendChild(lineupCard(i, wk, -1, 0)); });
+    host.appendChild(grid);
+    T.forEach(function (t) { SNAP.lineups[wk][t.rid].forEach(function (r) { if (r[3]) anyFa = true; }); });
+    var avg = T.reduce(function (a, t) { return a + SNAP.proj[wk][t.rid]; }, 0) / n;
+    if (anyFa) host.appendChild(el('p', { class: 'note foot', text: 'FA is a free agent filling an empty slot.' }));
+    projTable(host);
+  }
+  function showLineup(i) {
+    setTab('lineups');
+    var c = $('lu-' + T[i].rid); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'center' });
+  }
+
+  /* ---------- main column ---------- */
+  function renderMain() {
+    var host = $('main'), keep = focusKey(), data = state.tab === 'playoffs' || state.tab === 'draft'; host.textContent = '';
+    if (state.tab === 'method') return;
+    host.setAttribute('aria-labelledby', 'tab-' + state.tab);
+    if (data && state.mine >= 0) host.appendChild(mineCard());
+    if (state.tab === 'playoffs') playoffTable(host); else if (state.tab === 'draft') draftTable(host); else lineupsTab(host);
+    refocus(keep);
+  }
+
+  /* ---------- what-if panel ---------- */
+  function changes() {
+    var rows = [], i;
+    for (i = 0; i < n; i++) {
+      if (state.tab === 'playoffs') {
+        var best = null;
+        [['playoff', 'Make the playoffs'], ['bye', 'First-round bye'], ['champ', 'Win the title']].forEach(function (c) {
+          if (c[0] === 'bye' && PT !== 6) return;
+          var a = shown(base, c[0], i, c06, c02), b = shown(cur, c[0], i, cl6, cl2), d = dpts(a.p, b.p);
+          if (d && (!best || Math.abs(d) > Math.abs(best.d))) best = { i: i, who: T[i].short, label: c[1], from: pct(a.p, a.zero, a.one), to: pct(b.p, b.zero, b.one), d: d, score: Math.abs(d) / 100, dl: arrow(d), cls: d > 0 ? 'up' : 'down' };
+        });
+        if (best) rows.push(best);
+      } else {
+        var a1 = slotP(base, i, 0), b1 = slotP(cur, i, 0), a3 = top3(base, i), b3 = top3(cur, i), am = meanSlot(base, i), bm = meanSlot(cur, i), owner = OWN[1][i];
+        var who = poss(T[i].short) + ' pick', held = owner !== i ? ', held by ' + T[owner].short : '', d1 = dpts(a1, b1), d3 = dpts(a3, b3), dm = (Math.round(bm * 10) - Math.round(am * 10)) / 10;
+        if (d1 || d3) {
+          var first = Math.abs(d1) > Math.abs(d3), dd = first ? d1 : d3;
+          rows.push({ i: i, who: who, label: (first ? 'First pick' : 'Top-three pick') + held, from: pz(first ? a1 : a3), to: pz(first ? b1 : b3), d: dd, score: Math.abs(dd) / 100, dl: arrow(dd), cls: '' });
+        } else if (dm) {
+          rows.push({ i: i, who: who, label: 'Average slot' + held, from: am.toFixed(1), to: bm.toFixed(1), d: dm, score: Math.abs(dm) * 0.25, dl: Math.abs(dm).toFixed(1) + (dm > 0 ? ' later' : ' earlier'), cls: '' });
+        }
+      }
+    }
+    rows.sort(function (x, y) { return (y.i === state.mine) - (x.i === state.mine) || y.score - x.score; });
+    return rows.slice(0, 5);
+  }
+  function renderPicker() {
+    var host = $('whatif'), keep = focusKey(), k = nPicks(), weeks = [];
+    host.textContent = '';
+    cfg.games.forEach(function (g) { if (weeks.indexOf(g.week) < 0) weeks.push(g.week); });
+    host.appendChild(el('div', { class: 'wihead' }, [el('h2', { text: 'What if?' }), k ? el('button', { type: 'button', class: 'reset', 'data-k': 'reset2', text: 'Reset picks', onclick: resetPicks }) : null]));
+    if (!weeks.length) { host.appendChild(el('p', { class: 'note', text: 'The regular season is over, so there are no games left to pick.' })); return; }
+    if (weeks.indexOf(state.week) < 0) state.week = weeks[0];
+    host.appendChild(el('p', { class: 'note', text: 'Tap a winner.' }));
+    if (weeks.length > 1) {
+      var seg = el('div', { class: 'seg', role: 'group', 'aria-label': 'Week' });
+      weeks.forEach(function (w) {
+        var c = 0; cfg.games.forEach(function (g, gi) { if (g.week === w && state.picks[gi]) c++; });
+        seg.appendChild(el('button', { type: 'button', 'data-k': 'w' + w, 'aria-pressed': String(w === state.week), onclick: function () { state.week = w; renderPicker(); } },
+          ['Week ' + w, c ? el('span', { class: 'cnt', 'aria-label': plural(c, 'pick'), text: String(c) }) : null]));
+      });
+      host.appendChild(seg);
+    }
+    var list = el('div', { class: 'games' });
+    gameRank[state.tab].forEach(function (gi) {
+      var g = cfg.games[gi]; if (g.week !== state.week) return;
+      var pa = E.winProb(cfg.rel[g.week][g.a], cfg.rel[g.week][g.b], cfg.sigma, cfg.v[g.a], cfg.v[g.b]), pick = state.picks[gi];
+      var row = el('div', { class: 'game', role: 'group', 'aria-label': T[g.a].name + ' against ' + T[g.b].name });
+      [[g.a, pa, 1, 'a'], [g.b, 1 - pa, 2, 'b']].forEach(function (s) {
+        var won = pick === s[2], lost = !!pick && !won;
+        row.appendChild(el('button', { type: 'button', 'data-k': 'g' + gi + s[3], 'aria-pressed': String(won),
+          class: 'side ' + s[3] + (lost ? ' lost' : '') + (s[1] > 0.5 ? ' fav' : '') + (s[0] === state.mine ? ' mine' : ''),
+          'aria-label': T[s[0]].name + (won ? ', picked to win. Tap to undo.' : ', ' + pct(s[1]) + ' to win. Tap to pick.'),
+          onclick: function () { setPick(gi, won ? 0 : s[2]); } },
+          [el('span', { class: 'nm', text: T[s[0]].short }), won ? checkIcon() : lost ? null : el('span', { class: 'wp', text: pct(s[1]) })]));
+      });
+      list.appendChild(row);
+    });
+    host.appendChild(list);
+    if (!k) { refocus(keep); return; }
+    var rows = stale ? [] : changes(), box = el('div', { class: 'changes' }, [el('h3', { text: 'What your ' + (k === 1 ? 'pick changes' : k + ' picks change') })]);
+    if (stale) box.appendChild(el('p', { class: 'note', text: 'Rerunning the season.' }));
+    else if (rows.length) {
+      var ul = el('ul');
+      rows.forEach(function (r) {
+        ul.appendChild(el('li', null, [el('span', { class: 'who' }, [el('b', { text: r.who }), el('span', { text: r.label })]),
+          el('span', { class: 'vals' }, [r.from + ' → ' + r.to, el('i', { class: 'dl ' + r.cls, text: r.dl })])]));
+      });
+      box.appendChild(ul);
+    } else box.appendChild(el('p', { class: 'note', text: state.tab === 'playoffs' ? 'No team’s playoff, bye or title odds move by a full point.' : 'No first-round pick moves by much.' }));
+    box.appendChild(el('button', { type: 'button', class: 'linkbtn totop', 'data-k': 'totop', text: 'See every team in the table', onclick: function () {
+      var smooth = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      $('main').scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+    } }));
+    host.appendChild(box);
+    refocus(keep);
+  }
+
+  /* ---------- actions ---------- */
+  function renderAll() {
+    var data = state.tab === 'playoffs' || state.tab === 'draft', method = state.tab === 'method';
+    renderBar();
+    $('grid').hidden = method; $('method-panel').hidden = !method;
+    $('grid').className = 'grid' + (data ? '' : ' solo'); $('whatif').hidden = !data;   // picks only matter on the two odds tabs
+    renderMain(); renderExtra(); if (data) renderPicker();
+  }
+  function run() { compute(); stale = false; renderAll(); }
+  function setPick(gi, v) {
+    state.picks[gi] = v; stale = true;
+    renderBar(); renderPicker();                       // the tap shows at once; the numbers follow
+    var id = ++pending; setTimeout(function () { if (id === pending) run(); }, 30);
+  }
+  function resetPicks() { state.picks = new Array(G).fill(0); pending++; run(); }
+  function toggleOpen(i) { state.open = state.open === i ? -1 : i; renderMain(); }
+  function setTab(t, quiet) {
+    if (TABS.indexOf(t) < 0) return;
+    state.tab = t;
+    if (!quiet) { try { if (location.hash !== '#' + t) location.hash = t; } catch (e) {} }
+    renderAll();
+    var bar = document.querySelector('.bar'), panel = t === 'method' ? $('method-panel') : $('grid');
+    if (bar.getBoundingClientRect().top <= 0) window.scrollTo(0, Math.max(0, (window.pageYOffset || 0) + panel.getBoundingClientRect().top - bar.offsetHeight));   // tabs pinned: open the new tab at its top
+  }
+
+  /* one tooltip for chips, cells and bars: hover with a mouse, tap on a phone */
+  var tip = $('tip'), tipTimer = 0;
+  function showTip(tgt, x, y) {
+    tip.textContent = tgt.getAttribute('data-tip'); tip.hidden = false;
+    var left = Math.min(window.innerWidth - tip.offsetWidth - 8, x + 14), top = y + 16;
+    if (top + tip.offsetHeight > window.innerHeight - 8) top = y - tip.offsetHeight - 10;
+    tip.style.left = Math.max(8, left) + 'px'; tip.style.top = Math.max(8, top) + 'px';
+  }
+  function tipTarget(ev) { return ev.target && ev.target.closest ? ev.target.closest('[data-tip]') : null; }
+  document.addEventListener('pointermove', function (ev) { if (ev.pointerType === 'touch') return; var t = tipTarget(ev); if (t) showTip(t, ev.clientX, ev.clientY); else tip.hidden = true; });
+  document.addEventListener('click', function (ev) {
+    var t = tipTarget(ev); clearTimeout(tipTimer);
+    if (!t) { tip.hidden = true; return; }
+    showTip(t, ev.clientX, ev.clientY); tipTimer = setTimeout(function () { tip.hidden = true; }, 2800);
+  });
+  window.addEventListener('scroll', function () { tip.hidden = true; }, true);
+
+  function start(saved) {
+    try { var r = Number(localStorage.getItem('league-odds-team')); T.forEach(function (t, i) { if (t.rid === r) state.mine = i; }); } catch (e) {}
+    if (saved && typeof saved === 'object') {
+      if (Array.isArray(saved.picks)) state.picks = saved.picks;
+      if (typeof saved.blend === 'number') state.blend = saved.blend;
+      if (typeof saved.open === 'number') state.open = saved.open;
+      if (typeof saved.week === 'number') state.week = saved.week;
+      if (TABS.indexOf(saved.tab) >= 0) state.tab = saved.tab;
+    }
+    var h = (location.hash || '').replace('#', ''); if (TABS.indexOf(h) >= 0) state.tab = h;
+    TABS.forEach(function (t) { $('tab-' + t).addEventListener('click', function () { setTab(t); }); });
+    document.querySelector('.tabs').addEventListener('keydown', function (ev) {
+      if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
+      var t = TABS[(TABS.indexOf(state.tab) + (ev.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length]; setTab(t); $('tab-' + t).focus();
+    });
+    window.addEventListener('hashchange', function () { var x = (location.hash || '').replace('#', ''); if (TABS.indexOf(x) >= 0 && x !== state.tab) setTab(x, true); });
+    $('mine').addEventListener('change', function () {
+      state.mine = Number($('mine').value);
+      try { if (state.mine >= 0) localStorage.setItem('league-odds-team', String(T[state.mine].rid)); else localStorage.removeItem('league-odds-team'); } catch (e) {}
+      renderAll();
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#basis button'), function (b) { b.addEventListener('click', function () { state.blend = Number(b.getAttribute('data-blend')); run(); }); });
+    run();
+  }
+  var hot = window.claude && window.claude.hot;
+  if (hot && hot.snapshot) hot.snapshot(function () { return { picks: state.picks, blend: state.blend, open: state.open, week: state.week, tab: state.tab }; });
+  if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
+})();
+</script>
+</body>
+</html>

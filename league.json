@@ -1,0 +1,11 @@
+{
+  "league_id": "1313270302943223808",
+  "history_seasons": [2023, 2024, 2025],
+  "playoff_weeks": { "r1": 14, "r2": 15, "final": [16, 17] },
+  "draft_rounds": 5,
+  "draft_linear": true,
+  "short_names": {
+    "1": "Love Hurts", "2": "Banter Brigade", "3": "Righty’s", "4": "Lisan Al Caleb", "5": "Steinfelds", "6": "REDACTED",
+    "7": "Mahomie", "8": "Brown Note", "9": "Jim Thorpe", "10": "Jeck Getler", "11": "Taj MaCallah", "12": "bhickson"
+  }
+}
