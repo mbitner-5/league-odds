@@ -168,7 +168,7 @@
         remember(D);
         document.title = D.name + ' League Odds';
         $('league-name').textContent = D.name;
-        var when = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        var when = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).replace(' AM', ' am').replace(' PM', ' pm');
         var meta = D.phase === 'done' ? D.season + ' season, final.' : D.phase === 'playoffs' ? 'Playoffs, through Week ' + D.scored + '.' : (D.through ? 'Through Week ' + D.through + ' of ' + D.set.regEnd + '.' : 'Before Week ' + D.set.first + '.');
         $('meta').textContent = meta + ' Updated ' + when + '.';
         show('app');
@@ -179,6 +179,7 @@
           var notes = [];
           if (D.set.overridden && !D.seedsMatch) notes.push('Your commissioner has edited the playoff bracket, so seeds here may differ from Sleeper’s.');
           if (!shared.meta && need.length) notes.push('Projections aren’t available right now, so teams are rated on season scoring alone.');
+          for (var w = D.scored + 1; w <= D.set.lastWeek && D.phase !== 'done'; w++) if ((D.scores[w] || []).some(function (x) { return x > 0; })) { notes.push('Week ' + w + ' is under way. It counts here once Sleeper marks it final.'); break; }
           var old = $('flags'); if (old) old.remove();
           if (notes.length) { var bar = document.querySelector('.bar'); bar.parentNode.insertBefore(el('p', { class: 'note flag', id: 'flags', text: notes.join(' ') }), bar); window.__lo.notes = notes; }
         });
