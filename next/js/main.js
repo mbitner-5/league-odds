@@ -40,7 +40,18 @@
 
   /* ---------- start screen ---------- */
   function recent() { return store('league-odds-recent') || []; }
+  // Visit counter: one anonymous tick per league opened. Never sends the league's ID or name.
+  var tallied = {};
+  function tally(D) {
+    try {
+      var k = (D.platform || 'sleeper') + (D.phase === 'unsupported' || D.phase === 'pre' ? '-not-ready' : '');
+      if (tallied[D.id]) return; tallied[D.id] = 1;
+      var go = function (n) { var g = window.goatcounter; if (g && g.count) g.count({ path: 'league-' + k, title: 'League opened', event: true }); else if (n > 0) setTimeout(function () { go(n - 1); }, 1500); };
+      go(4);
+    } catch (e) {}
+  }
   function remember(D) {
+    tally(D);
     var list = recent().filter(function (x) { return x.id !== D.id; });
     list.unshift({ id: D.id, name: D.name, season: D.season }); store('league-odds-recent', list.slice(0, 6));
   }
