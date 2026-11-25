@@ -11,7 +11,10 @@
    *   sigma0: typical week-to-week noise for a league whose average score is `base`
    *   tau0:   typical spread of true team strength
    *   c, kappa: how far projected lineups can be trusted (slope, and what they miss) */
-  var PRIOR = { sigmaAt100: 20.1, sigmaPow: 0.71, sigmaDf: 40, tauShare: 0.14, tauDf: 8, c: 0.9, kappaShare: 0.085 };
+  var PRIOR = { sigmaAt100: 20.1, sigmaPow: 0.71, sigmaDf: 40, bestBallSigma: 0.88, tauShare: 0.14, tauDf: 8,
+    c: 0.97, kappaShare: 0.03,        // projected-lineup gaps carry over almost one for one; results add a little on top
+    kappaVarShare: 0.045,             // how wrong the blended rating can still be (kept wider than the fit: later weeks are less certain)
+    projLevel: 0.94 };                // teams score about 94% of their best projected lineup
 
   function mean(a) { var s = 0, k = 0; for (var i = 0; i < a.length; i++) if (a[i] != null && !isNaN(a[i])) { s += a[i]; k++; } return k ? s / k : 0; }
 
@@ -31,8 +34,8 @@
     for (i = 0; i < n; i++) { games[i] = rel[i].length; var mi = mean(rel[i]); sum[i] = mi; if (games[i]) means.push(mi); rel[i].forEach(function (x) { ss += (x - mi) * (x - mi); }); df += Math.max(0, games[i] - 1); }
     return { base: base, ss: ss, df: df, games: games, formRaw: sum, means: means, prior: prior };
   }
-  function finishHyper(h, base) {
-    var p = h.prior, sigma0 = p.sigmaAt100 * Math.pow(Math.max(base, 20) / 100, p.sigmaPow), tau0 = p.tauShare * base;
+  function finishHyper(h, base, bestBall) {
+    var p = h.prior, sigma0 = p.sigmaAt100 * Math.pow(Math.max(base, 20) / 100, p.sigmaPow) * (bestBall ? p.bestBallSigma : 1), tau0 = p.tauShare * base;
     var sigma2 = (p.sigmaDf * sigma0 * sigma0 + h.ss) / (p.sigmaDf + h.df);
     var m = h.means.length, tau2 = tau0 * tau0;
     if (m >= 4) {
@@ -41,7 +44,7 @@
       var est = Math.max(0, v - sigma2 / g);
       tau2 = (p.tauDf * tau0 * tau0 + (m - 1) * est) / (p.tauDf + m - 1);
     }
-    return { base: base, sigma: Math.sqrt(sigma2), tau: Math.sqrt(tau2), sigma0: sigma0, tau0: tau0, kappa: p.kappaShare * base, c: p.c };
+    return { base: base, sigma: Math.sqrt(sigma2), tau: Math.sqrt(tau2), sigma0: sigma0, tau0: tau0, kappa: p.kappaShare * base, kappaVar: p.kappaVarShare * base, c: p.c };
   }
 
   /* Projected best lineup for every team in every week still to play.
@@ -101,7 +104,7 @@
     weeks.forEach(function (w) { if (!haveProj || !proj[w]) return; var t = proj[w].totals, m = mean(t); projRel[w] = t.map(function (x) { return x - m; }); projMean += m; cntW++; for (i = 0; i < n; i++) avgRel[i] += t[i] - m; });
     if (cntW) { for (i = 0; i < n; i++) avgRel[i] /= cntW; projMean /= cntW; }
     weeks.forEach(function (w) { if (!projRel[w]) projRel[w] = avgRel.slice(); });
-    var base = h0.base || projMean || 100, hy = finishHyper(h0, base);
+    var base = h0.base || projMean * h0.prior.projLevel || 100, hy = finishHyper(h0, base, D.set.bestBall);
     if (!h0.base && mode === 'season') mode = haveProj ? 'proj' : 'season';
     var s2 = hy.sigma * hy.sigma, form = { raw: h0.formRaw, games: h0.games, k: [], shrunk: [] }, rel = {}, v = new Array(n), lean = new Array(n);
     for (i = 0; i < n; i++) {
@@ -110,7 +113,8 @@
       if (mode === 'proj') k = 0;
       form.k.push(k); form.shrunk.push((g ? hy.tau * hy.tau / (hy.tau * hy.tau + s2 / g) : 0) * h0.formRaw[i]);
       lean[i] = mode === 'season' ? k * h0.formRaw[i] : k * (h0.formRaw[i] - hy.c * avgRel[i]);     // what results add on top of projections
-      v[i] = g && mode !== 'proj' ? k * s2 / g : (mode === 'proj' ? hy.kappa * hy.kappa : hy.tau * hy.tau);
+      var pv = mode === 'season' ? hy.tau * hy.tau : hy.kappaVar * hy.kappaVar;                    // spread of what we could still be wrong about
+      v[i] = g && mode !== 'proj' ? pv * (s2 / g) / (pv + s2 / g) : pv;
     }
     weeks.forEach(function (w) { rel[w] = projRel[w].map(function (p, t) { return mode === 'season' ? lean[t] : hy.c * p + lean[t]; }); });
     var games = [];

@@ -46,6 +46,26 @@ jobs:
           node src/test_engine.js
           python3 src/build.py
 
+      # Preview of the any-league page, published beside the league page at /next/
+      - name: Test the any-league page code
+        run: |
+          node next/test/unit.js
+          node next/test/engine_regress.js
+
+      - name: Last good projection files
+        uses: actions/cache@v4
+        with:
+          path: .shared
+          key: shared-${{ github.run_id }}
+          restore-keys: shared-
+
+      - name: Add the any-league page and this week's projections
+        run: |
+          mkdir -p dist/next .shared
+          cp -r next/index.html next/js dist/next/
+          if node scripts/build_shared.mjs .shared-new; then cp -r .shared-new/. .shared/; else echo "::warning::Projection pull failed, publishing the last good files"; fi
+          cp -r .shared dist/next/data
+
       - name: Save the new data
         if: steps.pull.outcome == 'success'
         run: |

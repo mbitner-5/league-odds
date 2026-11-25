@@ -22,6 +22,8 @@
   --ramp-hi: #0e3d7e;
   --up: #006c10;
   --down: #b42318;
+  --trade: #e8590c;        /* a pick that changed hands: the dot */
+  --trade-ink: #b8430a;    /* same idea as text (dark enough to read) */
   --font: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color-scheme: light;
 }
@@ -105,7 +107,7 @@ table.odds tbody tr.r.cut > * { border-top: 2px solid var(--ink); }
 .nm { display: block; font-stretch: 84%; font-weight: 650; font-size: 14.5px; line-height: 1.15; overflow-wrap: anywhere; }
 @media (hover: hover) { .tbtn:hover .nm { text-decoration: underline; text-underline-offset: 3px; } }
 .sub { display: block; color: var(--muted); font-size: 12px; line-height: 1.3; font-stretch: 92%; overflow-wrap: anywhere; }
-.sub.to { color: var(--accent); font-weight: 600; }
+.sub.to { color: var(--trade-ink); font-weight: 650; }
 tr.me .tbtn .nm, tr.me .tbtn .rk { color: var(--accent); }
 tr.me .tbtn .rk { font-weight: 800; }
 .nm .s { display: none; }
@@ -183,7 +185,7 @@ table.own tr.me .nm { color: var(--accent); }
 .cap i { display: block; height: 5px; min-width: 2px; border-radius: 3px; background: var(--accent); }
 .pk { position: relative; display: flex; align-items: center; justify-content: center; height: 22px; margin: 0 0 6px; border-radius: 5px; font-stretch: 80%; font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; color: #000; cursor: default; }
 .pk.hi { color: #fff; }
-.pk.got::after, .dot { content: ""; width: 9px; height: 9px; border-radius: 50%; background: #e8590c; box-shadow: 0 0 0 2px var(--page); }
+.pk.got::after, .dot { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--trade); box-shadow: 0 0 0 2px var(--page); }
 .pk.got::after { position: absolute; top: -3px; right: -3px; }
 .dot { display: inline-block; margin: 0 4px 0 1px; box-shadow: none; vertical-align: 0; }
 .none { display: block; text-align: center; color: var(--muted); font-size: 13px; line-height: 22px; }
@@ -219,6 +221,7 @@ table.own tr.me .nm { color: var(--accent); }
 .linkbtn { all: unset; cursor: pointer; color: var(--accent); font-weight: 650; font-size: 13.5px; text-decoration: underline; text-underline-offset: 3px; align-self: flex-start; padding: 6px 0; }
 .linkbtn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .linkbtn.inl { padding: 0; font-size: inherit; }
+.numtog { padding: 2px 0 0; }
 
 /* how-it-works tab */
 .method { padding-top: 18px; display: flex; flex-direction: column; gap: 18px; }
@@ -267,6 +270,7 @@ footer a { color: inherit; text-underline-offset: 3px; }
   .nm { font-size: 15.5px; }
   .chip { margin: 0 2px; font-size: 15px; }
   .cell { font-size: 12px; font-stretch: 84%; }
+  .strip.nums .cell:not(:empty)::after { content: "%"; font-size: 9.5px; margin-left: 0.5px; }
   .striph span { font-size: 12px; }
   .detail { padding: 16px; }
   .dgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -345,7 +349,7 @@ __MODEL__
   var E = window.CPEngine, M = window.CPModel;
   var N = 40000, SEED = 20261124, SWITCH = 0.68;   // SWITCH: where chip text turns white (keeps contrast above 4.5:1)
   var T = SNAP.teams, n = T.length, L = SNAP.league, PT = L.playoffTeams, D = SNAP.draft;
-  var state = { picks: [], tab: 'playoffs', blend: SNAP.blend, open: -1, mine: -1, week: null, luWeek: null };
+  var state = { picks: [], tab: 'playoffs', blend: SNAP.blend, open: -1, mine: -1, week: null, luWeek: null, nums: false };
   var cfg, baseCache = {}, base, cur, cl6, cl2, c06, c02, G = 0, orderNow = [], seedNow = [], gameRank = {}, pending = 0, stale = false;
   var $ = function (id) { return document.getElementById(id); };
   var TABS = ['playoffs', 'draft', 'lineups', 'method'];
@@ -539,32 +543,33 @@ __MODEL__
   /* ---------- draft table ---------- */
   function draftTable(host) {
     var picks = anyPicks(), ordC = projOrder(cur), rB = rankOf(projOrder(base));
-    host.appendChild(head(D.season + ' draft order', picks ? 'With your ' + plural(nPicks(), 'pick') + '.' : 'Where each first-round pick is likely to land.', picks));
+    var hd = head(D.season + ' draft order', picks ? 'With your ' + plural(nPicks(), 'pick') + '.' : 'Darker is more likely. Tap a square for the odds.', picks);
+    hd.appendChild(el('button', { type: 'button', class: 'linkbtn numtog', 'data-k': 'nums', 'aria-pressed': String(state.nums), text: state.nums ? 'Hide numbers' : 'Show numbers', onclick: function () { state.nums = !state.nums; renderMain(); } }));
+    host.appendChild(hd);
     var sh = el('div', { class: 'striph', 'aria-hidden': 'true' }), grp = el('div', { class: 'stripg', 'aria-hidden': 'true' }), body = el('tbody'), s, b0 = n - PT;
     var g1 = el('span', { text: 'Miss the playoffs' }), g2 = el('span', { text: 'By playoff finish' });
     g1.style.gridColumn = 'span ' + b0; g2.style.gridColumn = 'span ' + PT; grp.appendChild(g1); grp.appendChild(g2);
     for (s = 1; s <= n; s++) sh.appendChild(el('span', { text: String(s) }));
     ordC.forEach(function (i, k) {
-      var owner = OWN[1][i], strip = el('div', { class: 'strip' }), best = 0, d = picks ? rB[i] - (k + 1) : 0;
+      var owner = OWN[1][i], strip = el('div', { class: 'strip' + (state.nums ? ' nums' : '') }), best = 0, d = picks ? rB[i] - (k + 1) : 0;
       for (var j = 0; j < n; j++) {
         var p = slotP(cur, i, j), v = Math.round(p * 100); if (v >= 100 && p < 1) v = 99;
         if (p > slotP(cur, i, best)) best = j;
         var t = 0.1 + 0.9 * p, tip = T[i].short + ' pick lands ' + ord(j + 1) + ': ' + (p > 0 ? pct1(p) : 'never in ' + N.toLocaleString('en-US') + ' runs');
-        strip.appendChild(p > 0 ? el('span', { class: 'cell' + (t >= SWITCH ? ' hi' : ''), bg: heat(t), 'data-tip': tip }, [p >= 0.005 ? String(v) : '']) : el('span', { class: 'cell', 'data-tip': tip }));
+        strip.appendChild(p > 0 ? el('span', { class: 'cell' + (t >= SWITCH ? ' hi' : ''), bg: heat(t), 'data-tip': tip }, [p >= 0.005 && state.nums ? String(v) : '']) : el('span', { class: 'cell', 'data-tip': tip }));
       }
       var tr = el('tr', { class: 'r' + (i === state.mine || owner === state.mine ? ' me' : '') });
       tr.appendChild(el('th', { scope: 'row' }, [el('button', { class: 'tbtn', type: 'button', 'data-k': 't' + i, 'aria-expanded': String(state.open === i), onclick: function () { toggleOpen(i); } },
-        [el('span', { class: 'rk', 'data-tip': d ? 'Projected ' + ord(rB[i]) + ' before your picks' : null }, [String(k + 1), d ? el('i', { 'aria-label': d > 0 ? 'moved earlier' : 'moved later', text: d > 0 ? '▲' : '▼' }) : null]), el('span', null, [nameEl(i),
-          owner !== i ? el('span', { class: 'sub to', text: 'to ' + T[owner].short }) : el('span', { class: 'sub', text: rec(i) })])])]));
+        [el('span', { class: 'rk', 'data-tip': d ? 'Projected ' + ord(rB[i]) + ' before your picks' : null }, [String(k + 1), d ? el('i', { 'aria-label': d > 0 ? 'moved earlier' : 'moved later', text: d > 0 ? '▲' : '▼' }) : null]), el('span', null, [nameEl(owner),
+          owner !== i ? el('span', { class: 'sub to', text: 'from ' + T[i].name }) : el('span', { class: 'sub', text: rec(i) })])])]));
       tr.appendChild(el('td', { 'aria-label': 'Most likely ' + ord(best + 1) + ', ' + pct(slotP(cur, i, best)) }, [strip]));
       body.appendChild(tr);
       if (state.open === i) body.appendChild(el('tr', { class: 'det' }, [el('td', { colspan: '2' }, [detailDraft(i)])]));
     });
     var tb = el('table', { class: 'odds' }, [el('colgroup', null, [el('col', { class: 't' }), el('col')]),
-      el('thead', null, [el('tr', null, [el('th', { scope: 'col', class: 'team', text: 'Pick from' }), el('th', { scope: 'col' }, [grp, sh])])]), body]);
+      el('thead', null, [el('tr', null, [el('th', { scope: 'col', class: 'team', text: 'Who picks' }), el('th', { scope: 'col' }, [grp, sh])])]), body]);
     tb.style.setProperty('--n', String(n));
     host.appendChild(tb);
-    host.appendChild(el('p', { class: 'note foot', text: '“to” marks a traded pick.' }));
   }
 
   /* ---------- who holds the picks ---------- */
@@ -586,7 +591,7 @@ __MODEL__
     rows.forEach(function (row) { row.cap = 0; row.per.forEach(function (list, ri) { list.forEach(function (x) { row.cap += val(ri + 1, x.s); }); }); top = Math.max(top, row.cap); });
     rows.sort(function (x, y) { return y.cap - x.cap || x.first - y.first; });
     var hd = head('Who holds the picks', ' '), nt = hd.querySelector('.note');
-    if (nt) { nt.textContent = ''; nt.appendChild(el('span', { class: 'dot', 'aria-hidden': 'true' })); nt.appendChild(document.createTextNode('= came in a trade')); }
+    if (nt) { nt.textContent = ''; nt.appendChild(el('span', { class: 'dot', 'aria-hidden': 'true' })); nt.appendChild(document.createTextNode('= received in a trade')); }
     host.appendChild(hd);
     var cg = el('colgroup', null, [el('col')]), hr = el('tr', null, [el('th', { scope: 'col', text: 'Team and value' })]), body = el('tbody');
     for (r = 1; r <= D.rounds; r++) { cg.appendChild(el('col', { class: 'c' })); hr.appendChild(el('th', { scope: 'col', text: 'Rd ' + r })); }
