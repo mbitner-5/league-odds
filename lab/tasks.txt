@@ -1,2 +1,1 @@
-browser.mjs
 espn_e2e.mjs
