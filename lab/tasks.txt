@@ -1,2 +1,2 @@
-probe.mjs
-survey.mjs
+e2e.mjs
+fit.mjs

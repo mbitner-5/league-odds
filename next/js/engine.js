@@ -238,6 +238,7 @@
    *   'seed'    the lower seed picks first
    *   'place'   the loser of the placement game picks first (falls back to seed)
    *   'bracket' the team from the later bracket game picks first
+   * byRound (optional) picks one of those three separately for each round of elimination.
    * 'record' ignores the bracket: every team in reverse standings order. */
   function draftSlots(rule, n, P, R, order, seedOf, elim, place, lostIn, pp, pf, slot, tmp, key) {
     var i, k, np = n - P;
@@ -252,9 +253,9 @@
     // playoff teams: sort ascending by finish (worst finish picks first)
     if (rule.playoff === 'record') { for (i = 0; i < P; i++) slot[order[i]] = n - i; return slot; }
     for (i = 0; i < P; i++) {
-      var tm = order[i], e = elim[tm] || 1, tie;
-      if (rule.playoff === 'place') tie = place[tm] ? (2 * P - place[tm]) / (2 * P + 1) : (P - 1 - seedOf[tm]) / (4 * P + 2);   // better place = later pick
-      else if (rule.playoff === 'bracket') tie = lostIn[tm] ? 1 - lostIn[tm] / 1000 : 0.999;                            // earlier game = later pick
+      var tm = order[i], e = elim[tm] || 1, tie, how = rule.byRound && rule.byRound[e] ? rule.byRound[e] : rule.playoff;
+      if (how === 'place') tie = place[tm] ? (2 * P - place[tm]) / (2 * P + 1) : (P - 1 - seedOf[tm]) / (4 * P + 2);   // better place = later pick
+      else if (how === 'bracket') tie = lostIn[tm] ? 1 - lostIn[tm] / 1000 : 0.999;                            // earlier game = later pick
       else tie = (P - 1 - seedOf[tm]) / (P + 1);                                                                          // better seed = later pick
       key[tm] = e + tie * 0.9; tmp[i] = tm;
     }
