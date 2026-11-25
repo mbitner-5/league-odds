@@ -60,12 +60,21 @@ method=f"""
         </ul>
       </div>
 """
-title=f"{lg['name'].title()} League Odds"
+SMALL={'a','an','and','as','at','but','by','for','in','of','on','or','the','to','vs','with'}
+def title_case(name):
+    words=name.split(); out=[]
+    for i,w in enumerate(words):
+        if any(ch.isupper() for ch in w): out.append(w)                       # leave words that already carry capitals
+        elif i and w.lower() in SMALL: out.append(w.lower())
+        else: out.append(w[:1].upper()+w[1:])
+    return ' '.join(out)
+lg['name']=title_case(lg['name'])
+title=f"{lg['name']} League Odds"
 meta=f"Through Week {n} of {lg['regWeeks']}. Updated {pulled_short}."
-footer=f"Scores, rosters, traded picks and projections come from the Sleeper API for league {LEAGUE_ID}. Rosters and traded picks were pulled {snap['pulled']}, projections the same evening. The random seed is fixed, so the same picks give the same numbers on every device."
+footer='Data from Sleeper. <a href="https://github.com/mbitner-5/league-odds">Code on GitHub</a>.'
 page=open('src/template.html').read()
 page=page.replace('__TITLE__',html.escape(title)).replace('__LEAGUE__',html.escape(lg['name'])).replace('__META__',html.escape(meta))
-page=page.replace('__METHOD__',method).replace('__FOOTER__',html.escape(footer))
+page=page.replace('__METHOD__',method).replace('__FOOTER__',footer)
 page=page.replace('__ENGINE__',open('src/engine.js').read()).replace('__MODEL__',open('src/model.js').read())
 small=dict(snap); small['backtest']=None
 page=page.replace('__SNAPSHOT__',json.dumps(small,separators=(',',':')).replace('</','<\\/'))

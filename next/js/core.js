@@ -282,7 +282,7 @@
       { m: 6, r: 3, a: W(3), b: W(4), p: 1 }, { m: 7, r: 3, a: L(3), b: L(4), p: 3 }];
     if (P === 7) return [{ m: 1, r: 1, a: S(4), b: S(5) }, { m: 2, r: 1, a: S(2), b: S(7) }, { m: 3, r: 1, a: S(3), b: S(6) }, { m: 4, r: 2, a: S(1), b: W(1) }, { m: 5, r: 2, a: W(2), b: W(3) },
       { m: 6, r: 2, a: L(2), b: L(3) }, { m: 7, r: 3, a: W(4), b: W(5), p: 1 }, { m: 8, r: 3, a: L(4), b: L(5), p: 3 }, { m: 9, r: 3, a: L(1), b: W(6), p: 5 }];
-    if (P === 8) return [{ m: 1, r: 1, a: S(1), b: S(8) }, { m: 2, r: 1, a: S(4), b: S(5) }, { m: 3, r: 1, a: S(2), b: S(7) }, { m: 4, r: 1, a: S(3), b: S(6) },
+    if (P === 8) return [{ m: 1, r: 1, a: S(1), b: S(8) }, { m: 2, r: 1, a: S(4), b: S(5) }, { m: 3, r: 1, a: S(3), b: S(6) }, { m: 4, r: 1, a: S(2), b: S(7) },
       { m: 5, r: 2, a: W(1), b: W(2) }, { m: 6, r: 2, a: W(3), b: W(4) }, { m: 7, r: 2, a: L(1), b: L(2) }, { m: 8, r: 2, a: L(3), b: L(4) },
       { m: 9, r: 3, a: W(5), b: W(6), p: 1 }, { m: 10, r: 3, a: L(5), b: L(6), p: 3 }, { m: 11, r: 3, a: W(7), b: W(8), p: 5 }, { m: 12, r: 3, a: L(7), b: L(8), p: 7 }];
     // any other size: a plain single-elimination tree with byes for the top seeds
