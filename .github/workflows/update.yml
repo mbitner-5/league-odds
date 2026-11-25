@@ -32,6 +32,7 @@ jobs:
 
       - name: Pull the league from Sleeper
         id: pull
+        if: github.event_name != 'push'   # code pushes rebuild from the saved data; only the nightly run pulls
         continue-on-error: true      # if Sleeper is down or a check fails, keep the last good data
         run: python3 scripts/update.py
 

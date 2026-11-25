@@ -1,0 +1,48 @@
+name: Lab
+
+# Research and tests against real public league data. Results go to the lab-results branch.
+on:
+  push:
+    branches: [main]
+    paths: ['lab/**', 'next/**', '.github/workflows/lab.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lab
+  cancel-in-progress: true
+
+jobs:
+  lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/cache@v4
+        with:
+          path: .labcache
+          key: labcache-${{ github.run_id }}
+          restore-keys: labcache-
+      - name: Run
+        run: |
+          mkdir -p lab-out
+          for task in $(cat lab/tasks.txt); do
+            echo "== $task"; node "lab/$task" > "lab-out/$task.log" 2>&1 || echo "FAILED $task" >> lab-out/FAILED.txt
+            tail -5 "lab-out/$task.log"
+          done
+          git rev-parse HEAD > lab-out/COMMIT
+      - name: Publish results
+        if: always()
+        run: |
+          cd lab-out
+          git init -q -b lab-results
+          git config user.name "league-odds lab"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Lab results for ${GITHUB_SHA::7}"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" lab-results
