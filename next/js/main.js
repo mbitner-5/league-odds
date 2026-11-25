@@ -147,7 +147,7 @@
     if (draftShown) items.push('Draft order: non-playoff teams by ' + (rule.nonPlayoff === 'maxpf' ? 'fewest potential points (Max PF)' : rule.nonPlayoff === 'pf' ? 'fewest points' : 'worst record') + ', then playoff teams by how far they got.' + (rule.seasons ? ' Checked against ' + (rule.seasons === 1 ? 'last year’s draft.' : 'the last ' + rule.seasons + ' drafts.') : ''));
     col('This league', [el('ul', null, items.map(li))]);
     col('Limits', [el('ul', null, [
-      li('A week still being played counts as not started until Sleeper marks it final.'),
+      li('In a week under way, points already scored count and the rest is projected. A game in progress is treated as half played.'),
       li('Trades, injuries and waiver moves that haven’t happened yet aren’t predicted.'),
       li('Commissioner edits to seeds or draft order can’t be known ahead of time.'),
       li('100% and a dash mean settled by arithmetic. >99% and <1% mean very likely, not certain.')])]);

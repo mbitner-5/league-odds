@@ -12,6 +12,8 @@ The scripts are in `lab/`, the tests in `next/test/`.
 | Records rebuilt from weekly scores, median game included | 230 in progress | 230 of 230 |
 | Fantasy points from the stat feed under each league's scoring | 440 leagues, 103,182 player-weeks, every position including kickers, defenses and IDP | 103,182 of 103,182 exact |
 | Whole pipeline (load, lineups, simulation, sure-thing flags) | 290 leagues | 0 errors |
+| Playoffs replayed from the middle (after each playoff week of finished 2025 seasons) | 140 leagues, 391 snapshots | 0 errors; no eliminated team ever kept title odds, the real champion always kept some |
+| The deployed page in a real browser | 32 league shapes, phone and desktop widths | 0 errors, no sideways scrolling, about 1 second to load |
 
 ## Draft order
 
@@ -38,3 +40,9 @@ degrade. The blend keeps more uncertainty than the fit asks for to cover that.
 
 Typical sizes: week-to-week noise is about 18% of a league's average score (20 points at 100, 24 at 130);
 true team strength spreads about 14%; teams score about 94% of their best projected lineup.
+
+## A week under way
+
+Real weeks from 2026 were frozen after each day of games; win chances came from points banked plus projections for players still to play.
+Across 5,897 matchups: after Thursday the Brier score was 0.174 (0.179 ignoring the live scores), and games called 80-90% were won 85% of the time.
+After Sunday, with only Monday left, it was 0.032, and games called 90-97% were won 99% of the time (slightly cautious).
