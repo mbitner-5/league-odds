@@ -17,11 +17,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  update:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+    outputs:
+      pull: ${{ steps.pull.outcome }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,14 +55,25 @@ jobs:
           git push
 
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - id: deploy
         uses: actions/deploy-pages@v4
 
-      - name: Flag a failed pull
-        if: steps.pull.outcome == 'failure'
-        run: |
+  flag:
+    needs: build
+    if: needs.build.outputs.pull == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
           echo "The Sleeper pull failed, so the site was rebuilt from the last good data."
           exit 1
