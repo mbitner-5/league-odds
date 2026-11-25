@@ -158,7 +158,7 @@
   /* ---------- load and show one league ---------- */
   function fail(D, text) {
     show('message'); var box = $('message'); box.textContent = '';
-    box.appendChild(el('h1', { text: D ? D.name : 'League Odds' }));
+    box.appendChild(el('h1', { class: D && D.name.length > 22 ? 'long' : null, text: D ? D.name : 'League Odds' }));
     box.appendChild(el('p', { text: text }));
     box.appendChild(el('p', null, [el('a', { href: './', text: 'Try another league' })]));
   }
@@ -183,7 +183,7 @@
           onRun: function (o) { methodText(D, o.cfg, o.N, { nonPlayoff: app ? app.state.np : rule.nonPlayoff, seasons: rule.seasons }, draftShown); window.__lo.cfg = o.cfg; window.__lo.base = o.base; } };
         remember(D);
         document.title = D.name + ' League Odds';
-        $('league-name').textContent = D.name;
+        $('league-name').textContent = D.name; $('league-name').className = D.name.length > 22 ? 'long' : '';
         var when = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).replace(' AM', ' am').replace(' PM', ' pm');
         var meta = D.phase === 'done' ? D.season + ' season, final.' : D.phase === 'playoffs' ? 'Playoffs, through Week ' + D.scored + '.' : (D.through ? 'Through Week ' + D.through + ' of ' + D.set.regEnd + '.' : 'Before Week ' + D.set.first + '.');
         $('meta').textContent = meta + ' Updated ' + when + '.';
@@ -227,7 +227,7 @@
         var rule = { nonPlayoff: 'record', playoff: 'place', byRound: null, seasons: 0 };
         var ctx = { league: D, proj: pj.proj, shared: shared, live: null, source: 'ESPN', draft: { show: false, season: String(Number(D.season) + 1), rounds: 1, traded: [], rule: rule },
           onRun: function (o) { methodText(D, o.cfg, o.N, rule, false); window.__lo.cfg = o.cfg; window.__lo.base = o.base; } };
-        remember(D); document.title = D.name + ' League Odds'; $('league-name').textContent = D.name;
+        remember(D); document.title = D.name + ' League Odds'; $('league-name').textContent = D.name; $('league-name').className = D.name.length > 22 ? 'long' : '';
         var when = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).replace(' AM', ' am').replace(' PM', ' pm');
         $('meta').textContent = (D.phase === 'done' ? D.season + ' season, final.' : D.phase === 'playoffs' ? 'Playoffs, through Week ' + D.scored + '.' : D.through ? 'Through Week ' + D.through + ' of ' + D.set.regEnd + '.' : 'Before Week ' + D.set.first + '.') + ' Updated ' + when + '.';
         document.querySelector('footer').firstChild.textContent = 'Data from ESPN. ';
