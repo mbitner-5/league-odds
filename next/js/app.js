@@ -426,13 +426,13 @@
   var SLOT = { SUPER_FLEX: 'SF', FLEX: 'FLX', WRRB_FLEX: 'W/R', REC_FLEX: 'W/T', IDP_FLEX: 'IDP', WRRBTE_FLEX: 'FLX' };
   function lineupCard(i, wk, opp, pWin) {
     var card = el('div', { class: 'lcard' + (i === state.mine ? ' me' : ''), id: 'lu-' + T[i].rid });
-    card.appendChild(el('div', { class: 'lhead' }, [el('span', { class: 'lname', text: T[i].name }), el('span', { class: 'ltot' }, [el('b', { text: proj[wk].totals[i].toFixed(1) }), 'points']),
+    card.appendChild(el('div', { class: 'lhead' }, [el('span', { class: 'lname', text: T[i].name }), el('span', { class: 'ltot' }, [el('b', { text: fx(proj[wk].totals[i]) }), 'points']),
       el('span', { class: 'lsub', text: opp >= 0 ? pct(pWin) + ' to beat ' + T[opp].short : rec(i) + ', ' + ord(seedNow[i] + 1) + ' in the standings' })]));
     proj[wk].lineups[i].forEach(function (r) {
       var info = r.id != null ? shared.players[r.id] : null, name = info ? info[0] : r.id != null ? 'Player ' + r.id : 'Empty';
       card.appendChild(el('div', { class: 'lrow' }, [el('span', { class: 'sl', text: SLOT[r.slot] || r.slot }),
         el('span', { class: 'pl' }, [el('span', { class: 'f', text: name }), el('span', { class: 's', text: abbr(name) }), r.fa ? el('span', { class: 'fa', 'data-tip': 'A free agent the model assumes gets added to fill an empty slot', text: 'FA' }) : null]),
-        el('span', { class: 'pts', text: r.pts.toFixed(1) })]));
+        el('span', { class: 'pts', text: fx(r.pts) })]));
     });
     return card;
   }
@@ -445,7 +445,7 @@
       var tr = el('tr', { class: 'r' + (i === state.mine ? ' me' : '') }, [el('th', { scope: 'row' }, [nameEl(i, true), el('span', { class: 'sub', text: cfg.form.games[i] ? 'avg ' + (cfg.base + cfg.form.raw[i]).toFixed(1) : '' })])]);
       weeks.forEach(function (w) {
         var x = proj[w].totals[i], t = hi > lo ? (x - lo) / (hi - lo) : 0.5;
-        tr.appendChild(el('td', null, [el('span', { class: 'chip' + (t >= SWITCH ? ' hi' : ''), bg: heat(t) }, [x.toFixed(1)])]));
+        tr.appendChild(el('td', null, [el('span', { class: 'chip' + (t >= SWITCH ? ' hi' : ''), bg: heat(t) }, [fx(x)])]));
       });
       body.appendChild(tr);
     });
@@ -488,6 +488,7 @@
     refocus(keep);
   }
 
+  function fx(x) { return x >= 1000 ? String(Math.round(x)) : x.toFixed(1); }
   function weekPicker(weeks, at, kp, go, cls, count) {
     if (weeks.length <= 3) {
       var seg = el('div', { class: 'seg ' + (cls || ''), role: 'group', 'aria-label': 'Week' });

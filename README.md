@@ -9,6 +9,7 @@ There are two pages right now:
 - **The site root** is the Cherry Pie league, rebuilt every night.
 - **`/next/`** takes any Sleeper league: paste a league ID, a league link or a username.
   It reads the league straight from Sleeper in your browser. Nothing is stored and there is no account.
+  Public ESPN leagues work too (beta): paste the league's link.
 
 ## What the any-league page handles
 
@@ -25,7 +26,7 @@ and the strength model was fitted and scored on 26,000 real games.
 
 - `next/js/core.js` – scoring, best lineups, standings, bracket shapes
 - `next/js/engine.js` – the simulation
-- `next/js/sleeper.js` – reads a league from Sleeper
+- `next/js/sleeper.js`, `next/js/espn.js` – read a league from Sleeper or ESPN
 - `next/js/model.js` – team strength, week under way, draft-order rule
 - `next/js/app.js`, `next/js/main.js`, `next/index.html` – the page
 - `scripts/build_shared.mjs` – nightly player projections the page reads (`data/` on the site)
@@ -49,7 +50,7 @@ and write only anonymous results to the `lab-results` branch.
 
 ## Known limits
 
-- Sleeper only. ESPN's public leagues could be added; Yahoo, MFL and Fleaflicker block browser access and would need a small server.
+- Sleeper, plus ESPN leagues that are set to public. Private ESPN leagues, Yahoo, MFL and Fleaflicker block browser access and would need a small server.
 - Sleeper's projections feed is unofficial and could change.
 - Projections for later weeks are less sure than this week's, and the model can't measure by how much yet.
 - Commissioner edits to seeds or draft order can't be predicted.

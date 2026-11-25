@@ -46,3 +46,11 @@ true team strength spreads about 14%; teams score about 94% of their best projec
 Real weeks from 2026 were frozen after each day of games; win chances came from points banked plus projections for players still to play.
 Across 5,897 matchups: after Thursday the Brier score was 0.174 (0.179 ignoring the live scores), and games called 80-90% were won 85% of the time.
 After Sunday, with only Monday left, it was 0.032, and games called 90-97% were won 99% of the time (slightly cautious).
+
+## ESPN (beta)
+
+ESPN lets a browser read leagues that are set to public (about 6% of the league IDs tried were). On 24 public leagues,
+this season and last, our seeds matched ESPN's own in 41 of 42 league-seasons, under both of ESPN's common tiebreak rules
+(points for, and head-to-head among tied teams with division winners first). Finished 2025 brackets replayed to the right
+champion in 15 of 19; in the other 4 the bracket didn't follow the seeds, and the page says so instead of guessing.
+Projected points come straight from ESPN, already scored under each league's rules.

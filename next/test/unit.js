@@ -175,4 +175,29 @@ for (let t = 0; t < 60; t++) {
   raw.league.settings.type = 3; ok('guillotine leagues get a clear message', S.normalize(raw).phase === 'unsupported');
   raw.league.settings.type = 2; raw.league.status = 'pre_draft'; ok('undrafted leagues get a clear message', S.normalize(raw).phase === 'pre'); }
 
+/* ---- ESPN: tiebreak rules and the reader ---- */
+{ const X = require('../js/espn.js'), n = 4, H = new Float64Array(16), G = new Float64Array(16);
+  const beat = (a, b) => { H[a * n + b]++; G[a * n + b]++; G[b * n + a]++; };
+  beat(1, 0); beat(2, 3);                                            // team 1 beat team 0 once
+  const wr = [0.6, 0.6, 0.4, 0.2], pf = [900, 800, 700, 600], pa = [500, 600, 700, 800];
+  ok('head-to-head: the winner of the meeting goes first despite fewer points', C.orderWithRule(n, wr, pf, pa, null, 0, 'h2h', H, G).join() === '1,0,2,3');
+  ok('points rule: more points goes first', C.orderWithRule(n, wr, pf, pa, null, 0, 'pf', H, G).join() === '0,1,2,3');
+  ok('points-against rule: more points against goes first', C.orderWithRule(n, wr, pf, pa, null, 0, 'pa', H, G).join() === '1,0,2,3');
+  // three tied teams that haven't all met equally: points for picks the first, then head-to-head settles the other two
+  const H3 = new Float64Array(16), G3 = new Float64Array(16), b3 = (a, b) => { H3[a * n + b]++; G3[a * n + b]++; G3[b * n + a]++; };
+  b3(2, 1); b3(0, 1); b3(0, 1);
+  ok('three-way tie: points first, then head-to-head between the two left', C.orderWithRule(n, [0.5, 0.5, 0.5, 0.1], [900, 800, 700, 600], pa, null, 0, 'h2h', H3, G3).join() === '0,2,1,3');
+  ok('division winners lead under any rule', C.orderWithRule(n, [0.9, 0.8, 0.3, 0.2], pf, pa, [1, 1, 2, 2], 2, 'h2h', H, G).join() === '0,2,1,3');
+  ok('ESPN link parsing', X.parse('https://fantasy.espn.com/football/league?leagueId=336358&seasonId=2026').id === '336358' && X.parse('espn 12345').id === '12345' && X.parse('1313270302943223808') === null);
+  const side = (id, pts) => ({ teamId: id, totalPoints: pts }), g = (mp, h, a, hp, ap, w, tier) => ({ matchupPeriodId: mp, playoffTierType: tier || 'NONE', home: side(h, hp), away: side(a, ap), winner: w });
+  const lg = { league: { id: 7, seasonId: 2026, scoringPeriodId: 3, status: { isActive: true }, settings: { name: 'tiny espn league', scheduleSettings: { matchupPeriodCount: 3, matchupPeriods: { 1: [1], 2: [2], 3: [3], 4: [4] }, playoffTeamCount: 2, playoffSeedingRule: 'H2H_RECORD', divisions: [{ id: 0 }] }, scoringSettings: { scoringType: 'H2H_POINTS' }, rosterSettings: { lineupSlotCounts: { 0: 1, 2: 1, 20: 5 } } },
+    teams: [1, 2, 3, 4].map(id => ({ id, name: 'Team ' + id, divisionId: 0, playoffSeed: 0 })),
+    schedule: [g(1, 1, 2, 100, 100, 'HOME'), g(1, 3, 4, 90, 80, 'HOME'), g(2, 1, 3, 70, 95, 'AWAY'), g(2, 2, 4, 85, 60, 'HOME'), g(3, 1, 4, 0, 0, 'UNDECIDED'), g(3, 2, 3, 0, 0, 'UNDECIDED')] }, rosterWeeks: { 3: [{ id: 1, entries: [{ playerId: 9, player: { fullName: 'Some Back', eligibleSlots: [2, 20], defaultPositionId: 2, stats: [{ seasonId: 2026, scoringPeriodId: 3, statSourceId: 1, statSplitTypeId: 1, appliedTotal: 12.5 }] } }] }] } };
+  const D = X.normalize(lg, S.titleCase);
+  ok('ESPN reader: phase, weeks, records from ESPN’s winner field (a 100-100 game still has a winner)', D.phase === 'regular' && D.through === 2 && D.rec.wins.join() === '1,1,2,0' && D.rec.ties.join() === '0,0,0,0' && D.set.tiebreak === 'h2h' && D.name === 'Tiny Espn League');
+  const pj = X.project(lg, D, [3]);
+  ok('ESPN reader: projected lineup from ESPN’s own points', pj.proj[3].totals[0] === 12.5 && pj.proj[3].lineups[0][1].id === 'e9' && pj.players.e9[0] === 'Some Back');
+  const cfg = M.buildConfig(D, pj.proj, {}), r = E.simulate(cfg, [], 3000, 1);
+  ok('ESPN league runs end to end with head-to-head tiebreaks', Math.abs(sum(r.playoff, r.wsum) - 2) < 1e-9 && cfg.tiebreak === 'h2h'); }
+
 console.log(`${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
