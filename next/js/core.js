@@ -268,6 +268,50 @@
     return winners.concat(rest);
   }
 
+  /* Seeds under other tiebreak rules (ESPN). rule: 'h2h' (head-to-head among the tied teams, when they have all
+   * met equally often), 'div' (record inside the division), 'pa' (most points against), anything else: points for.
+   * wr[i] = win rate; H = n*n array, H[i*n+j] = games i has won against j (a tie counts half for each); G = games played. */
+  function orderWithRule(n, wr, pf, pa, div, nDiv, rule, H, Gm) {
+    var idx = [], i, j;
+    for (i = 0; i < n; i++) idx.push(i);
+    var byPts = function (x, y) { return pf[y] - pf[x] || pa[y] - pa[x] || x - y; };
+    function rank(list) {             // order a set of teams: win rate first, the rule inside each tie
+      list = list.slice().sort(function (x, y) { return wr[y] - wr[x] || byPts(x, y); });
+      var out = [], k = 0;
+      while (k < list.length) {
+        var e = k + 1; while (e < list.length && Math.abs(wr[list[e]] - wr[list[k]]) < 1e-12) e++;
+        var grp = list.slice(k, e);
+        // settle a tie one place at a time: best of the tied teams by the rule, then start again with the rest
+        var left = grp.slice(); grp = [];
+        while (left.length > 1) {
+          var score = {}, usable = true, a, b;
+          if (rule === 'h2h') {
+            var first = -1;
+            for (a = 0; a < left.length && usable; a++) for (b = a + 1; b < left.length; b++) { var g = Gm[left[a] * n + left[b]]; if (first < 0) first = g; else if (g !== first) { usable = false; break; } }
+            if (first <= 0) usable = false;
+            if (usable) left.forEach(function (t) { var w = 0, gm = 0; left.forEach(function (o) { if (o !== t) { w += H[t * n + o]; gm += Gm[t * n + o]; } }); score[t] = gm ? w / gm : 0; });
+          } else if (rule === 'div' && div) {
+            left.forEach(function (t) { var w = 0, gm = 0; for (var o = 0; o < n; o++) if (o !== t && div[o] === div[t]) { w += H[t * n + o]; gm += Gm[t * n + o]; } score[t] = gm ? w / gm : 0; });
+          } else if (rule === 'pa') left.forEach(function (t) { score[t] = pa[t]; });
+          else usable = false;
+          var best = left[0];
+          for (a = 1; a < left.length; a++) { var t2 = left[a], d2 = usable ? score[t2] - score[best] : 0; if (d2 > 1e-12 || (Math.abs(d2) <= 1e-12 && byPts(t2, best) < 0)) best = t2; }
+          grp.push(best); left.splice(left.indexOf(best), 1);
+        }
+        grp.push(left[0]);
+        for (j = 0; j < grp.length; j++) out.push(grp[j]);
+        k = e;
+      }
+      return out;
+    }
+    var all = rank(idx);
+    if (!(nDiv > 1) || !div) return all;
+    var winners = [], seen = {};
+    for (var d = 0; d < n; d++) { var dv = div[d]; if (dv == null || seen[dv]) continue; seen[dv] = 1; var mates = idx.filter(function (t) { return div[t] === dv; }); winners.push(rank(mates)[0]); }
+    var isW = {}; winners.forEach(function (t) { isW[t] = 1; });
+    return rank(winners).concat(all.filter(function (t) { return !isW[t]; }));
+  }
+
   /* ---------- playoff brackets ---------- */
   // A bracket is a list of games. Each side is a seed ({s: 0} is the top seed), the winner of an earlier
   // game ({w: id}) or its loser ({l: id}). p marks the game that decides a final place (1 = title game).
@@ -346,7 +390,7 @@
     sfc32: sfc32, makeNormal: makeNormal, normCdf: normCdf, normInv: normInv,
     scoreStats: scoreStats, projectPoints: projectPoints, tailProb: tailProb,
     SLOT_ELIG: SLOT_ELIG, starterSlots: starterSlots, slotAccepts: slotAccepts, assign: assign, bestLineup: bestLineup,
-    winRate: winRate, standingsOrder: standingsOrder, seedOrder: seedOrder,
+    winRate: winRate, standingsOrder: standingsOrder, seedOrder: seedOrder, orderWithRule: orderWithRule,
     standardBracket: standardBracket, treeBracket: treeBracket, bracketFromSleeper: bracketFromSleeper, bracketKey: bracketKey, roundWeeks: roundWeeks
   };
 });

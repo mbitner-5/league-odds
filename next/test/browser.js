@@ -36,9 +36,13 @@ function fixtureRoutes() {
     if (!LIVE) {
       await p.route('https://api.sleeper.app/**', route => { const u = new URL(route.request().url()); const hit = routes[u.pathname]; if (hit === undefined) { misses.push(u.pathname); return route.fulfill({ status: 404, body: 'null', headers: { 'access-control-allow-origin': '*' } }); } route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(hit), headers: { 'access-control-allow-origin': '*' } }); });
       await p.route('https://fonts.googleapis.com/**', route => route.fulfill({ status: 200, contentType: 'text/css', body: fontCss }));
+      if (process.env.ESPN_FX) { const ef = JSON.parse(fs.readFileSync(process.env.ESPN_FX, 'utf8'));
+        await p.route('https://lm-api-reads.fantasy.espn.com/**', route => { const u = new URL(route.request().url()); const hdr = { 'access-control-allow-origin': '*' };
+          if (u.searchParams.getAll('view').includes('mRoster')) { const w = u.searchParams.get('scoringPeriodId'), ks = Object.keys(ef.rosterWeeks), k = ef.rosterWeeks[w] ? w : ks[0]; return route.fulfill({ status: 200, contentType: 'application/json', headers: hdr, body: JSON.stringify({ teams: ef.rosterWeeks[k].map(t => ({ id: t.id, roster: { entries: t.entries } })) }) }); }
+          route.fulfill({ status: 200, contentType: 'application/json', headers: hdr, body: JSON.stringify(ef.league) }); }); }
     }
     const t0 = Date.now();
-    await p.goto(`http://localhost:${port}/?league=${id}`);
+    await p.goto(`http://localhost:${port}/?` + (id.startsWith('espn:') ? 'espn=' + id.slice(5) + '&season=2026' : 'league=' + id));
     await p.waitForFunction(() => !document.getElementById('app').hidden && document.querySelector('table.odds') || !document.getElementById('message').hidden || !document.getElementById('start').hidden, null, { timeout: 45000 });
     const ms = Date.now() - t0;
     await p.evaluate(() => document.fonts.ready);

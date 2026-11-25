@@ -147,7 +147,7 @@
     var cfg = {
       n: n, wins: D.rec.wins, losses: D.rec.losses, ties: D.rec.ties, pf: D.rec.pf, pa: D.rec.pa,
       div: D.set.nDiv ? D.teams.map(function (t) { return t.div; }) : null, nDiv: D.set.nDiv, median: D.set.median,
-      games: games, rel: rel, base: base, sigma: hy.sigma, v: v,
+      games: games, rel: rel, base: base, sigma: hy.sigma, v: v, tiebreak: D.set.tiebreak || 'pf', h2h: D.h2h || null, h2hGames: D.h2hGames || null,
       playoff: { teams: D.set.P, bracket: D.bracket, rounds: D.set.rounds, reseed: D.set.reseed, fixed: D.fixed || null },
       draft: opts.draft ? { nonPlayoff: opts.draft.nonPlayoff, playoff: opts.draft.playoff, byRound: opts.draft.byRound || null, pp: D.rec.pp.map(function (x, t) { return x > 0 ? x : D.rec.pf[t] * ppRatio[t]; }), ppRatio: ppRatio } : null,
       hyper: hy, form: form, projRel: projRel, mode: mode, weeks: weeks, haveProj: !!haveProj,

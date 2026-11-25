@@ -1,7 +1,7 @@
 /* League Odds - start screen, loading a league, and handing it to the page. */
 (function () {
   'use strict';
-  var C = window.LOCore, E = window.LOEngine, S = window.LOSleeper, M = window.LOModel;
+  var C = window.LOCore, E = window.LOEngine, S = window.LOSleeper, M = window.LOModel, X = window.LOEspn;
   var $ = function (id) { return document.getElementById(id); };
   var DATA = (window.LO_DATA || 'data/'), TTL = 3 * 60 * 1000;
   function el(tag, attrs, kids) {
@@ -44,7 +44,8 @@
     var list = recent().filter(function (x) { return x.id !== D.id; });
     list.unshift({ id: D.id, name: D.name, season: D.season }); store('league-odds-recent', list.slice(0, 6));
   }
-  function leagueLink(x, sub) { return el('a', { href: '?league=' + x.id }, [x.name, el('small', { text: sub || x.season })]); }
+  function hrefOf(x) { return /^espn-/.test(String(x.id)) ? '?espn=' + String(x.id).slice(5) + '&season=' + x.season : '?league=' + x.id; }
+  function leagueLink(x, sub) { return el('a', { href: hrefOf(x) }, [x.name, el('small', { text: sub || (/^espn-/.test(String(x.id)) ? 'ESPN, ' : '') + x.season })]); }
   function showStart(err) {
     show('start'); document.title = 'League Odds';
     $('start-err').hidden = !err; $('start-err').textContent = err || '';
@@ -55,8 +56,9 @@
   function busy(on) { $('go-btn').disabled = on; $('go-btn').textContent = on ? 'Looking' : 'Show odds'; }
   function onGo(ev) {
     ev.preventDefault();
-    var q = $('q').value.trim(), id = S.parseId(q);
+    var q = $('q').value.trim(), espn = X.parse(q), id = espn ? null : S.parseId(q);
     $('start-err').hidden = true; $('found').hidden = true;
+    if (espn) { location.href = '?espn=' + espn.id + (espn.season ? '&season=' + espn.season : ''); return; }
     if (!q) { $('start-err').textContent = 'Enter a league ID, a league link or a Sleeper username.'; $('start-err').hidden = false; return; }
     if (id) { location.href = '?league=' + id; return; }
     // otherwise treat it as a username and list that user's leagues
@@ -129,16 +131,16 @@
 
   /* ---------- "How it works", written for the league on screen ---------- */
   function methodText(D, cfg, N, rule, draftShown) {
-    var s = D.set, cols = $('method-cols'); cols.textContent = '';
+    var s = D.set, cols = $('method-cols'), src = D.platform === 'espn' ? 'ESPN' : 'Sleeper'; cols.textContent = '';
     var col = function (title, kids) { cols.appendChild(el('div', null, [el('h3', { text: title })].concat(kids))); };
     var p = function (t) { return el('p', { text: t }); }, li = function (t) { return el('li', { text: t }); };
     var byes = E.bracketInfo(D.bracket).byeSeeds.length;
     col('The model', [
       p('Every game left is played out ' + N.toLocaleString('en-US') + ' times. A team’s score in a week is its expected score plus luck, sized from how much scores in this league swing week to week.'),
-      p(cfg.haveProj ? 'Expected scores start from Sleeper’s projections for each team’s best lineup, then lean toward how the team has actually scored as the weeks add up.' : 'Expected scores come from how each team has scored so far, pulled toward the league average early in the year.'),
+      p(cfg.haveProj ? 'Expected scores start from ' + src + '’s projections for each team’s best lineup, then lean toward how the team has actually scored as the weeks add up.' : 'Expected scores come from how each team has scored so far, pulled toward the league average early in the year.'),
       p('Picking a winner reruns the season with that result fixed.')]);
     var items = [s.P + ' of ' + D.n + ' teams make the playoffs' + (byes ? ', top ' + (byes === 1 ? 'seed gets' : byes + ' get') + ' a bye' : '') + '.',
-      'Standings: record, then points for, then points against.'];
+      s.tiebreak === 'h2h' ? 'Standings: record, then head-to-head among tied teams, then points for.' : s.tiebreak === 'div' ? 'Standings: record, then division record, then points for.' : s.tiebreak === 'pa' ? 'Standings: record, then points against.' : 'Standings: record, then points for, then points against.'];
     if (s.nDiv) items.push('Division winners take the top seeds.');
     if (s.median) items.push('Each week every team also plays the league median.');
     if (s.reseed) items.push('The bracket re-seeds each round.');
@@ -147,7 +149,7 @@
     if (draftShown) items.push('Draft order: non-playoff teams by ' + (rule.nonPlayoff === 'maxpf' ? 'fewest potential points (Max PF)' : rule.nonPlayoff === 'pf' ? 'fewest points' : 'worst record') + ', then playoff teams by how far they got.' + (rule.seasons ? ' Checked against ' + (rule.seasons === 1 ? 'last year’s draft.' : 'the last ' + rule.seasons + ' drafts.') : ''));
     col('This league', [el('ul', null, items.map(li))]);
     col('Limits', [el('ul', null, [
-      li('In a week under way, points already scored count and the rest is projected. A game in progress is treated as half played.'),
+      D.platform === 'espn' ? li('ESPN leagues are new here: a week under way counts once ESPN marks it final, and later weeks reuse the nearest week’s projections.') : li('In a week under way, points already scored count and the rest is projected. A game in progress is treated as half played.'),
       li('Trades, injuries and waiver moves that haven’t happened yet aren’t predicted.'),
       li('Commissioner edits to seeds or draft order can’t be known ahead of time.'),
       li('100% and a dash mean settled by arithmetic. >99% and <1% mean very likely, not certain.')])]);
@@ -208,7 +210,46 @@
     });
   }
 
+  /* ---------- ESPN (public leagues) ---------- */
+  function openEspn(id, season) {
+    show('loading'); $('load-name').textContent = 'Loading the league'; $('load-step').textContent = 'Reading standings and schedules from ESPN.';
+    var now = new Date(), yr = season || (now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1), raw0;
+    var get = function (url) { return getJSON(url, 1).catch(function (e) { if (e && e.code === 'net') { var e2 = new Error('ESPN won’t show this league. It has to be public: on ESPN open League, Settings, Basic Settings and turn on “Make League Viewable to Public”.'); e2.code = 'private'; throw e2; } throw e; }); };
+    return X.load(id, yr, get).then(function (raw) {
+      raw0 = raw; var D = X.normalize(raw, S.titleCase);
+      window.__lo = { raw: raw, league: D };
+      if (D.phase === 'unsupported' || D.phase === 'pre') { remember(D); fail(D, D.why); return; }
+      $('load-name').textContent = D.name; $('load-step').textContent = 'Reading rosters and projections (a large download from ESPN).';
+      var need = M.weeksNeeded(D), asks = [];
+      if (need.length) { asks.push(Math.min(need[0] + 1, need[need.length - 1])); if (need.length > 2) asks.push(Math.min(need[0] + 3, need[need.length - 1])); }
+      return asks.reduce(function (pr, w) { return pr.then(function () { return X.loadRosters(raw, id, yr, w, function (u) { return getJSON(u, 0); }); }); }, Promise.resolve()).then(function () {
+        var pj = X.project(raw, D, need), shared = { players: pj.players, weeks: {}, meta: Object.keys(pj.proj).length ? {} : null };
+        var rule = { nonPlayoff: 'record', playoff: 'place', byRound: null, seasons: 0 };
+        var ctx = { league: D, proj: pj.proj, shared: shared, live: null, source: 'ESPN', draft: { show: false, season: String(Number(D.season) + 1), rounds: 1, traded: [], rule: rule },
+          onRun: function (o) { methodText(D, o.cfg, o.N, rule, false); window.__lo.cfg = o.cfg; window.__lo.base = o.base; } };
+        remember(D); document.title = D.name + ' League Odds'; $('league-name').textContent = D.name;
+        var when = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).replace(' AM', ' am').replace(' PM', ' pm');
+        $('meta').textContent = (D.phase === 'done' ? D.season + ' season, final.' : D.phase === 'playoffs' ? 'Playoffs, through Week ' + D.scored + '.' : D.through ? 'Through Week ' + D.through + ' of ' + D.set.regEnd + '.' : 'Before Week ' + D.set.first + '.') + ' Updated ' + when + '.';
+        document.querySelector('footer').firstChild.textContent = 'Data from ESPN. ';
+        show('app');
+        return new Promise(function (res) { setTimeout(res, 20); }).then(function () {
+          window.__lo.app = window.LOApp.mount(ctx);
+          var notes = ['ESPN leagues are in beta here.'];
+          if (!D.seedsMatch) notes.push('Seeds here differ from ESPN’s in a tie.');
+          if (!shared.meta && need.length) notes.push('ESPN’s projections couldn’t be read, so teams are rated on season scoring alone.');
+          var w = D.scored + 1; if (D.phase !== 'done' && (D.scores[w] || []).some(function (x) { return x > 0; })) notes.push('Week ' + w + ' is under way. It counts once ESPN marks it final.');
+          var bar = document.querySelector('.bar'); bar.parentNode.insertBefore(el('p', { class: 'note flag', id: 'flags', text: notes.join(' ') }), bar); window.__lo.notes = notes;
+        });
+      });
+    }).catch(function (e) {
+      if (e && (e.code === 'private' || e.code === 'busy')) { showStart(e.message); return; }
+      window.__loError = String(e && e.stack || e); fail(null, 'Something went wrong showing this league. Reload to try again.'); if (window.console) console.error(e);
+    });
+  }
+
   $('go').addEventListener('submit', onGo);
   var qs = new URLSearchParams(location.search), id = S.parseId(qs.get('league') || qs.get('l') || '');
-  if (id) openLeague(id); else showStart(qs.get('league') ? 'That league ID doesn’t look right.' : '');
+  var espnId = (qs.get('espn') || '').replace(/\D/g, '');
+  if (espnId) openEspn(espnId, Number(qs.get('season')) || null);
+  else if (id) openLeague(id); else showStart(qs.get('league') ? 'That league ID doesn’t look right.' : '');
 })();

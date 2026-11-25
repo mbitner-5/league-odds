@@ -56,6 +56,9 @@
     var sdV = new Float64Array(n); for (i = 0; i < n; i++) sdV[i] = Math.sqrt(cfg.v[i] || 0);
     var div = cfg.div, nDiv = cfg.nDiv > 1 && div ? cfg.nDiv : 0, median = !!cfg.median, fixed = po.fixed || null;
     var live = cfg.live || null, liveWeek = live ? live.week : -1;
+    // other tiebreak rules (ESPN) need to know who beat whom
+    var tb = cfg.tiebreak && cfg.tiebreak !== 'pf' ? cfg.tiebreak : null, H0 = tb ? (cfg.h2h || new Float64Array(n * n)) : null, G0 = tb ? (cfg.h2hGames || new Float64Array(n * n)) : null;
+    var Hs = tb ? new Float64Array(n * n) : null, Gs = tb ? new Float64Array(n * n) : null, wrArr = tb ? new Float64Array(n) : null;
     picks = picks || [];
 
     // weeks of the regular season still to play, in order
@@ -116,6 +119,7 @@
     for (var s = 0; s < nSims; s++) {
       var w = 1;
       for (i = 0; i < n; i++) { e[i] = sdV[i] * norm(); wins[i] = cfg.wins[i] + 0.5 * cfg.ties[i]; pf[i] = cfg.pf[i]; pa[i] = cfg.pa[i]; own[i] = 0; if (needPP) pp[i] = draft.pp ? draft.pp[i] : cfg.pf[i]; }
+      if (tb) { Hs.set(H0); Gs.set(G0); }
 
       /* ----- the rest of the regular season, week by week ----- */
       for (var wi = 0; wi < weekList.length; wi++) {
@@ -154,6 +158,7 @@
           if (sa > sb) { wins[a] += 1; aWon[g] = 1; own[a]++; }
           else if (sb > sa) { wins[b] += 1; aWon[g] = 0; own[b]++; }
           else { wins[a] += 0.5; wins[b] += 0.5; aWon[g] = 2; }
+          if (tb) { Gs[a * n + b] += 1; Gs[b * n + a] += 1; if (sa > sb) Hs[a * n + b] += 1; else if (sb > sa) Hs[b * n + a] += 1; else { Hs[a * n + b] += 0.5; Hs[b * n + a] += 0.5; } }
         }
         if (median) {                    // top half of the week's scores also beat the median
           var wt = weekTeams[week], m = wt.length;
@@ -170,6 +175,10 @@
         for (i = 0; i < n; i++) seedOf[i] = n;
         for (i = 0; i < fixed.seeds.length; i++) { order[i] = fixed.seeds[i]; seedOf[fixed.seeds[i]] = i; }
         if (fixed.rest) for (i = 0; i < fixed.rest.length; i++) { order[fixed.seeds.length + i] = fixed.rest[i]; seedOf[fixed.rest[i]] = fixed.seeds.length + i; }
+      } else if (tb) {
+        for (i = 0; i < n; i++) wrArr[i] = wins[i] / (gTot[i] || 1);
+        var ord2 = C.orderWithRule(n, wrArr, pf, pa, div, nDiv, tb, Hs, Gs);
+        for (i = 0; i < n; i++) { order[i] = ord2[i]; seedOf[ord2[i]] = i; isDivW[ord2[i]] = nDiv && i < nDiv ? 1 : 0; }
       } else {
         for (i = 0; i < n; i++) key[i] = (sameGames ? wins[i] : wins[i] / (gTot[i] || 1) * 64) * 1e7 + pf[i] + pa[i] * 1e-7;
         sortByKey();

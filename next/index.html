@@ -337,13 +337,13 @@ footer a { color: inherit; text-underline-offset: 3px; }
     <h1>League Odds</h1>
     <p class="lede">Playoff and draft-pick odds for your fantasy league.</p>
     <form class="go" id="go" autocomplete="off">
-      <input id="q" type="text" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Sleeper league ID, league link or username" placeholder="League ID, link or username">
+      <input id="q" type="text" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Sleeper league ID, league link or username, or an ESPN league link" placeholder="League ID, link or username">
       <button class="btn" type="submit" id="go-btn">Show odds</button>
     </form>
     <p class="err" id="start-err" role="alert" hidden></p>
     <div class="pick" id="found" hidden></div>
     <div class="pick" id="recent" hidden></div>
-    <p class="fine">Works with Sleeper. The league ID is the long number in your league’s web address, or under League, Settings in the app. <a id="example" href="?league=1313270302943223808">See an example</a>.</p>
+    <p class="fine">Works with Sleeper: the league ID is the long number in your league’s web address, or under League, Settings in the app. ESPN leagues work too if they’re public: paste the league’s link. <a id="example" href="?league=1313270302943223808">See an example</a>.</p>
   </section>
 
   <section id="loading" class="loading" hidden><b id="load-name">Loading the league</b><span id="load-step">Reading standings and schedules from Sleeper.</span></section>
@@ -362,7 +362,7 @@ footer a { color: inherit; text-underline-offset: 3px; }
         <span class="seg" role="group" aria-labelledby="basis-l">
           <button type="button" data-mode="blend" data-tip="Blend: projected lineups, corrected by how each team has actually scored. The default.">Blend</button>
           <button type="button" data-mode="season" data-tip="Season: only how each team has scored this year.">Season</button>
-          <button type="button" data-mode="proj" data-tip="Projections: only Sleeper’s forecast for each team’s best lineup.">Projections</button>
+          <button type="button" data-mode="proj" data-tip="Projections: only the forecast for each team’s best lineup.">Projections</button>
         </span>
       </div>
     </div>
@@ -395,6 +395,7 @@ footer a { color: inherit; text-underline-offset: 3px; }
 <script src="js/core.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/sleeper.js"></script>
+<script src="js/espn.js"></script>
 <script src="js/model.js"></script>
 <script src="js/app.js"></script>
 <script src="js/main.js"></script>

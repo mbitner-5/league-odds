@@ -454,7 +454,7 @@
   }
   function lineupsTab(host) {
     var weeks = Object.keys(proj).sort(function (a, b) { return a - b; });
-    host.appendChild(head('Projected lineups', weeks.length ? 'Each team’s best lineup by Sleeper’s projections.' : 'No projections are out for the weeks left.'));
+    host.appendChild(head('Projected lineups', weeks.length ? 'Each team’s best lineup by ' + (ctx.source || 'Sleeper') + '’s projections.' : 'No projections are out for the weeks left.'));
     if (!weeks.length) return;
     if (weeks.indexOf(state.luWeek) < 0) state.luWeek = weeks[0];
     var wk = state.luWeek, anyFa = false;
