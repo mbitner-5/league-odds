@@ -83,6 +83,30 @@
     return out;
   }
 
+  /* A week under way. For every team: points its starters have already banked, and the share of its expected
+   * week still to come. statusOf(nflTeam) -> 'pre' | 'live' | 'done' | null (no game). Players in a game that is
+   * being played count as half done. week = { rows: that week's matchup rows, pack: projections for the week }. */
+  function liveWeek(D, rows, pack, players, statusOf, week) {
+    var n = D.n, idx = {}, banked = new Array(n).fill(0), rem = new Array(n).fill(0), full = new Array(n).fill(0), started = false, sc = D.set.scoring;
+    D.teams.forEach(function (t, k) { idx[t.rid] = k; });
+    var pts = function (pid) { var row = pack && pack.p[pid]; if (!row) return 0; var st = {}; for (var k = 0; k < row.length; k += 2) st[pack.keys[row[k]]] = row[k + 1]; var info = players[pid]; return Math.max(0, C.projectPoints(st, sc, info ? info[3] : null)); };
+    (rows || []).forEach(function (m) {
+      var t = idx[m.roster_id]; if (t == null) return;
+      var got = m.players_points || {};
+      (m.starters || []).forEach(function (pid) {
+        if (!pid || pid === '0') return;
+        var info = players[pid], st = statusOf(info ? info[2] : pid), p = pts(pid), have = got[pid] || 0;
+        if (st === 'done') { banked[t] += have; full[t] += p; started = true; }
+        else if (st === 'live') { banked[t] += have; rem[t] += p / 2; full[t] += p; started = true; }
+        else if (st === 'pre') { rem[t] += p; full[t] += p; }
+        else banked[t] += have;                                   // no game this week (or unknown): nothing more to come
+      });
+      if (m.custom_points != null) { banked[t] = m.custom_points; rem[t] = 0; }
+    });
+    if (!started) return null;
+    return { week: week, banked: banked, share: rem.map(function (r, t) { return full[t] > 0 ? Math.min(1, Math.max(0, r / full[t])) : 0; }), rem: rem, full: full };
+  }
+
   // weeks the simulator needs a strength number for
   function weeksNeeded(D) {
     var need = {}, w;
@@ -126,7 +150,8 @@
       games: games, rel: rel, base: base, sigma: hy.sigma, v: v,
       playoff: { teams: D.set.P, bracket: D.bracket, rounds: D.set.rounds, reseed: D.set.reseed, fixed: D.fixed || null },
       draft: opts.draft ? { nonPlayoff: opts.draft.nonPlayoff, playoff: opts.draft.playoff, byRound: opts.draft.byRound || null, pp: D.rec.pp.map(function (x, t) { return x > 0 ? x : D.rec.pf[t] * ppRatio[t]; }), ppRatio: ppRatio } : null,
-      hyper: hy, form: form, projRel: projRel, mode: mode, weeks: weeks, haveProj: !!haveProj
+      hyper: hy, form: form, projRel: projRel, mode: mode, weeks: weeks, haveProj: !!haveProj,
+      live: opts.live && weeks.indexOf(opts.live.week) >= 0 ? opts.live : null
     };
     return cfg;
   }
@@ -203,5 +228,5 @@
       known: seasons > 0 && npSlots > 0 && score['np:' + np] / npSlots >= 0.8, scores: score };
   }
 
-  return { PRIOR: PRIOR, hyper: hyper, finishHyper: finishHyper, projectWeeks: projectWeeks, weeksNeeded: weeksNeeded, buildConfig: buildConfig, inferDraftRule: inferDraftRule, seasonFacts: seasonFacts };
+  return { PRIOR: PRIOR, hyper: hyper, finishHyper: finishHyper, projectWeeks: projectWeeks, liveWeek: liveWeek, weeksNeeded: weeksNeeded, buildConfig: buildConfig, inferDraftRule: inferDraftRule, seasonFacts: seasonFacts };
 });

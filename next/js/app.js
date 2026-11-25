@@ -13,6 +13,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var TABS = D.show ? ['playoffs', 'draft', 'lineups', 'method'] : ['playoffs', 'lineups', 'method'];
   var NONE = { clinched: new Array(n).fill(false), eliminated: new Array(n).fill(false) };
+  function decided(g) { var lv = cfg && cfg.live; return !!lv && g.week === lv.week && lv.share[g.a] === 0 && lv.share[g.b] === 0; }
 
   /* ---------- small helpers ---------- */
   function el(tag, attrs, kids) {
@@ -99,8 +100,9 @@
   /* ---------- numbers ---------- */
   function compute() {
     var rule = { nonPlayoff: state.np, playoff: D.rule.playoff, byRound: D.rule.byRound };
-    cfg = M.buildConfig(LG, proj, { mode: state.mode, draft: D.show ? rule : null }); G = cfg.games.length;
+    cfg = M.buildConfig(LG, proj, { mode: state.mode, draft: D.show ? rule : null, live: ctx.live || null }); G = cfg.games.length;
     if (state.picks.length !== G) state.picks = new Array(G).fill(0);
+    cfg.games.forEach(function (g, gi) { if (decided(g)) state.picks[gi] = 0; });      // a finished game can't be picked
     // big leagues early in the season get fewer runs so a phone stays quick
     var cost = n * (cfg.weeks.length + 3); N = cost <= 150 ? 40000 : Math.max(8000, Math.round(40000 * 150 / cost / 1000) * 1000);
     // swings are tracked for the week being picked (all weeks when the league is small)
@@ -537,11 +539,11 @@
     var list = el('div', { class: 'games' });
     gameRank[state.tab].forEach(function (gi) {
       var g = cfg.games[gi]; if (g.week !== state.week) return;
-      var pa = base.gameW[gi] > 0 ? base.gameA[gi] / base.gameW[gi] : 0.5, pick = state.picks[gi];
-      var row = el('div', { class: 'game', role: 'group', 'aria-label': T[g.a].name + ' against ' + T[g.b].name });
+      var pa = base.gameW[gi] > 0 ? base.gameA[gi] / base.gameW[gi] : 0.5, pick = state.picks[gi], over = decided(g);
+      var row = el('div', { class: 'game' + (over ? ' over' : ''), role: 'group', 'aria-label': T[g.a].name + ' against ' + T[g.b].name });
       [[g.a, pa, 1, 'a'], [g.b, 1 - pa, 2, 'b']].forEach(function (s) {
         var won = pick === s[2], lost = !!pick && !won;
-        row.appendChild(el('button', { type: 'button', 'data-k': 'g' + gi + s[3], 'aria-pressed': String(won),
+        row.appendChild(el('button', { type: 'button', 'data-k': 'g' + gi + s[3], 'aria-pressed': String(won), disabled: over ? '' : null,
           class: 'side ' + s[3] + (lost ? ' lost' : '') + (s[1] > 0.5 ? ' fav' : '') + (s[0] === state.mine ? ' mine' : ''),
           'aria-label': T[s[0]].name + (won ? ', picked to win. Tap to undo.' : ', ' + pct(s[1]) + ' to win. Tap to pick.'),
           onclick: function () { setPick(gi, won ? 0 : s[2]); } },

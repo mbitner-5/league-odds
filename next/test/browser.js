@@ -20,6 +20,7 @@ function fixtureRoutes() {
   hist.forEach(h => { const id2 = h.league.league_id; m[`/v1/league/${id2}`] = h.league; m[`/v1/league/${id2}/rosters`] = h.rosters; m[`/v1/league/${id2}/winners_bracket`] = h.winners; if (h.draft) m[`/v1/draft/${h.draft.draft_id}`] = h.draft; });
   // each past league's own draft list: the draft that followed the season before it
   hist.forEach((h, k) => { const own = hist[k + 1] ? hist[k + 1].draft : null; m[`/v1/league/${h.league.league_id}/drafts`] = own ? [{ draft_id: own.draft_id }] : []; });
+  try { Object.assign(m, JSON.parse(fs.readFileSync(path.join(FX, 'extra_routes.json'), 'utf8'))); } catch (e) {}
   return m;
 }
 (async () => {
@@ -44,6 +45,7 @@ function fixtureRoutes() {
     await p.screenshot({ path: `${prefix}_${w}_1.png` });
     const info = await p.evaluate(() => ({ app: !document.getElementById('app').hidden, msg: document.getElementById('message').textContent.slice(0, 200), title: document.title, tabs: [...document.querySelectorAll('.tabs button')].filter(b => !b.hidden).map(b => b.textContent), meta: document.getElementById('meta').textContent, flags: (document.getElementById('flags') || {}).textContent || '', err: window.__loError || null, mode: window.__lo && window.__lo.cfg && window.__lo.cfg.mode }));
     console.log(w, ms + 'ms', JSON.stringify(info));
+    if (process.env.SHOWLIVE) console.log('  live', await p.evaluate(() => { const c = window.__lo.cfg; return c.live ? JSON.stringify({ week: c.live.week, banked: c.live.banked.map(x => Math.round(x)), share: c.live.share.map(x => Math.round(x * 100) / 100) }) : 'none'; }));
     if (info.app) {
       const widths = [];
       for (const tab of info.tabs) { const key = { Playoffs: 'playoffs', 'Draft picks': 'draft', Lineups: 'lineups', 'How it works': 'method' }[tab]; await p.locator('#tab-' + key).click(); await p.waitForTimeout(150); widths.push(key + ':' + await p.evaluate(() => document.documentElement.scrollWidth)); await p.screenshot({ path: `${prefix}_${w}_${key}.png`, fullPage: key !== 'playoffs' && w > 1000 }); }

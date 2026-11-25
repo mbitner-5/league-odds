@@ -93,6 +93,32 @@ for (const [n, P, o] of [[4, 2, {}], [6, 4, {}], [8, 4, { median: true }], [10, 
   let w2 = 0; for (let i = 0; i < 10; i++) w2 = Math.max(w2, Math.abs(f2.levPB[4][i] / f2.levWB[4] - r2.playoff[i] / r2.wsum));
   ok('same with median games in play', w2 < 0.012, 'max gap ' + w2.toFixed(4)); }
 
+/* ---- a week under way ---- */
+{ const base0 = JSON.stringify(league(8, 4, { weeks: 2, rel: new Array(8).fill(0), wins: new Array(8).fill(3), total: 6, pf: new Array(8).fill(600), v: 0 }));
+  const mk = live => { const c = JSON.parse(base0); c.live = live; return c; };
+  const g0 = mk(null).games[0], A = g0.a, B = g0.b, ones = new Array(8).fill(1), zeros = new Array(8).fill(0);
+  const same = E.simulate(mk({ week: 1, banked: zeros, share: ones }), [], 60000, 3), plain = E.simulate(mk(null), [], 60000, 4);
+  let gap = 0; for (let i = 0; i < 8; i++) gap = Math.max(gap, Math.abs(same.playoff[i] / same.wsum - plain.playoff[i] / plain.wsum));
+  ok('live week with nothing played yet changes nothing', gap < 0.012, String(gap));
+  const banked = zeros.slice(), share = ones.slice(); banked[A] = 130; share[A] = 0; banked[B] = 90; share[B] = 0;
+  const done = E.simulate(mk({ week: 1, banked, share }), [], 4000, 5);
+  ok('a finished game in a live week is settled', done.gameA[0] / done.gameW[0] === 1);
+  const b2 = zeros.slice(), s2 = ones.slice(); b2[A] = 80; s2[A] = 0.5; const half = E.simulate(mk({ week: 1, banked: b2, share: s2 }), [], 60000, 6);
+  const want = C.normCdf((80 + 50 - 100) / Math.sqrt(400 * 0.5 + 400));
+  ok('half-played week: banked points plus half the expected rest, with less luck left', Math.abs(half.gameA[0] / half.gameW[0] - want) < 0.01, `${half.gameA[0] / half.gameW[0]} vs ${want}`);
+  const picks = mk(null).games.map((_, i) => i === 0 ? 2 : 0), free = E.simulate(mk({ week: 1, banked: b2, share: s2 }), [], 150000, 7), forced = E.simulate(mk({ week: 1, banked: b2, share: s2 }), picks, 150000, 8);
+  let w3 = 0; for (let i = 0; i < 8; i++) w3 = Math.max(w3, Math.abs(free.levPB[0][i] / free.levWB[0] - forced.playoff[i] / forced.wsum));
+  ok('picking the trailing team in a half-played game matches the runs where it came back', w3 < 0.015 && Math.abs(forced.wsum / forced.nSims - (1 - want)) < 0.01, `gap ${w3.toFixed(4)} weight ${forced.wsum / forced.nSims}`);
+  let pfGap = 0; for (let i = 0; i < 8; i++) pfGap = Math.max(pfGap, Math.abs(free.levPB[0][i] / free.levWB[0] - forced.playoff[i] / forced.wsum));
+  // points-for must also line up after conditioning (the tiebreak depends on it)
+  const fa = forced.pfSum[A] / forced.wsum, fb = forced.pfSum[B] / forced.wsum; ok('forced live game: the picked winner outscores the loser on average', fb > fa);
+  // model helper: banked and remaining shares from starters
+  const Dm = { n: 2, teams: [{ rid: 1 }, { rid: 2 }], set: { scoring: { rush_yd: 0.1 } } };
+  const pack = { keys: ['rush_yd'], p: { a: [0, 100], b: [0, 50], c: [0, 80] } }, players = { a: ['A', 'RB', 'KC', ['RB']], b: ['B', 'RB', 'SF', ['RB']], c: ['C', 'RB', 'NYG', ['RB']] };
+  const lw = M.liveWeek(Dm, [{ roster_id: 1, starters: ['a', 'b'], players_points: { a: 14, b: 0 } }, { roster_id: 2, starters: ['c', '0'], players_points: { c: 3 } }], pack, players, t => ({ KC: 'done', SF: 'pre', NYG: 'live' })[t] || null, 5);
+  ok('live week helper: banked points and share left', lw.banked.join() === '14,3' && Math.abs(lw.share[0] - 5 / 15) < 1e-9 && Math.abs(lw.share[1] - 0.5) < 1e-9, JSON.stringify(lw));
+  ok('live week helper: nothing started means no live week', M.liveWeek(Dm, [{ roster_id: 1, starters: ['b'], players_points: {} }], pack, players, () => 'pre', 5) === null); }
+
 /* ---- sure things never contradict the runs ---- */
 for (let t = 0; t < 40; t++) {
   const n = [6, 8, 10, 12][t % 4], P = [4, 4, 6, 6][t % 4], o = { weeks: 1 + (t % 3), wins: Array.from({ length: n }, () => Math.floor(rnd() * 9)), total: 9, median: t % 5 === 0 };

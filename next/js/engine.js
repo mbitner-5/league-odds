@@ -44,6 +44,8 @@
    *              fixed: { seeds: [team by seed], teams: {m: [a, b]}, done: {m: [winner, loser]}, partial: {m: {a, b, weeks}} } }
    *   draft: { nonPlayoff: 'record' | 'maxpf' | 'pf', playoff: 'seed' | 'place' | 'bracket' | 'record', pp[], ppRatio[] } or null
    *   levGames: indexes of games to track swings for (default: all when small, else the first open week)
+   *   live: { week, banked[], share[] }   a week under way: points already scored, and the share of each team's
+   *                                        expected week still to come (0 = all its players are done)
    * }
    * picks: array aligned with cfg.games: 0 = open, 1 = team a wins, 2 = team b wins.
    */
@@ -53,6 +55,7 @@
     var sigma = cfg.sigma, sD = sigma * Math.SQRT2, base = cfg.base, i, g, r, k;
     var sdV = new Float64Array(n); for (i = 0; i < n; i++) sdV[i] = Math.sqrt(cfg.v[i] || 0);
     var div = cfg.div, nDiv = cfg.nDiv > 1 && div ? cfg.nDiv : 0, median = !!cfg.median, fixed = po.fixed || null;
+    var live = cfg.live || null, liveWeek = live ? live.week : -1;
     picks = picks || [];
 
     // weeks of the regular season still to play, in order
@@ -96,7 +99,15 @@
     var ppRatio = draft && draft.ppRatio ? draft.ppRatio : null, needPP = draft && draft.nonPlayoff === 'maxpf';
 
     function ref(x) { return x.s != null ? order[x.s] : x.w != null ? winner[x.w] : loser[x.l]; }
-    function roundScore(t, weeks) { var tot = 0; for (var q = 0; q < weeks.length; q++) { var rl = cfg.rel[weeks[q]]; tot += base + (rl ? rl[t] : 0) + e[t] + sigma * norm(); } return tot; }
+    function roundScore(t, weeks) {
+      var tot = 0;
+      for (var q = 0; q < weeks.length; q++) {
+        var rl = cfg.rel[weeks[q]], full = base + (rl ? rl[t] : 0) + e[t];
+        if (weeks[q] === liveWeek) { var sh = live.share[t]; tot += live.banked[t] + sh * full + (sh > 0 ? Math.sqrt(sh) * sigma * norm() : 0); }
+        else tot += full + sigma * norm();
+      }
+      return tot;
+    }
     function sortByKey() {             // insertion sort, best first
       for (var a = 0; a < n; a++) order[a] = a;
       for (a = 1; a < n; a++) { var oa = order[a], kk = key[oa], j = a - 1; while (j >= 0 && key[order[j]] < kk) { order[j + 1] = order[j]; j--; } order[j + 1] = oa; }
@@ -113,7 +124,22 @@
           g = gl[k];
           var gm = cfg.games[g], a = gm.a, b = gm.b;
           var muA = base + rel[a] + e[a], muB = base + rel[b] + e[b], sa, sb, pick = picks[g] | 0;
-          if (pick === 0) { sa = muA + sigma * norm(); sb = muB + sigma * norm(); }
+          if (week === liveWeek) {
+            // part of this week is already on the board: bank it and play out only what is left
+            var shA = live.share[a], shB = live.share[b], vA = sigma * sigma * shA, vB = sigma * sigma * shB, vD = vA + vB;
+            muA = live.banked[a] + shA * muA; muB = live.banked[b] + shB * muB;
+            if (pick === 0 || !(vD > 0)) {
+              sa = muA + (shA > 0 ? Math.sqrt(vA) * norm() : 0); sb = muB + (shB > 0 ? Math.sqrt(vB) * norm() : 0);
+              if (pick !== 0 && ((pick === 1) !== (sa > sb))) w = 0;           // a pick against a finished game can't happen
+            } else {
+              var sdD = Math.sqrt(vD), l0 = -(muA - muB) / sdD, zl, prl;
+              if (pick === 1) { prl = normCdf(-l0); zl = -normInv(Math.max(rng() * prl, 1e-300)); } else { prl = normCdf(l0); zl = normInv(Math.max(rng() * prl, 1e-300)); }
+              w *= prl;
+              var dev = sdD * zl;                                               // how far the margin lands from its mean
+              sa = muA + (vA / vD) * dev + Math.sqrt(vA * vB / vD) * norm(); sb = sa - (muA - muB + dev);
+            }
+          }
+          else if (pick === 0) { sa = muA + sigma * norm(); sb = muB + sigma * norm(); }
           else {
             var a0 = -(muA - muB) / sD, z, pr;
             if (pick === 1) { pr = normCdf(-a0); z = -normInv(Math.max(rng() * pr, 1e-300)); }

@@ -325,6 +325,9 @@ footer a { color: inherit; text-underline-offset: 3px; }
 .rulebar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 14px; font-size: 13px; color: var(--muted); }
 .rulebar .seg { display: inline-grid; padding: 2px; border-radius: 8px; }
 .rulebar .seg button { min-height: 30px; padding: 3px 11px; border-radius: 6px; font-size: 13.5px; }
+.game.over .side { cursor: default; }
+.game.over .side:not(.fav) { color: var(--muted); }
+@media (hover: hover) { .game.over .side:hover { box-shadow: none; } }
 .note.flag { color: var(--ink); background: var(--soft); border-radius: 8px; padding: 8px 10px; margin-bottom: 14px; }
 </style>
 </head>

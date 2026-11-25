@@ -3,7 +3,7 @@
   'use strict';
   var C = window.LOCore, E = window.LOEngine, S = window.LOSleeper, M = window.LOModel;
   var $ = function (id) { return document.getElementById(id); };
-  var DATA = (window.LO_DATA || 'data/'), TTL = 10 * 60 * 1000;
+  var DATA = (window.LO_DATA || 'data/'), TTL = 3 * 60 * 1000;
   function el(tag, attrs, kids) {
     var e = document.createElement(tag), k;
     for (k in (attrs || {})) { var v = attrs[k]; if (v == null || v === false) continue; if (k === 'text') e.textContent = v; else if (k === 'class') e.className = v; else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); }
@@ -98,6 +98,20 @@
     });
   }
 
+  /* ---------- a week under way: which NFL teams have played, are playing, or are still to come ---------- */
+  function liveWeek(D, raw, shared) {
+    var w = D.scored + 1;
+    if (D.phase === 'done' || w > D.set.lastWeek || !(D.scores[w] || []).some(function (x) { return x > 0; })) return Promise.resolve(null);
+    if (!shared.weeks[w]) return Promise.resolve({ week: w, unknown: true });
+    return optional('https://api.sleeper.app/schedule/nfl/regular/' + D.season).then(function (sched) {
+      if (!sched || !sched.length) return { week: w, unknown: true };
+      var st = {};
+      sched.forEach(function (g) { if (g.week !== w) return; var s = g.status === 'complete' ? 'done' : g.status === 'pre_game' ? 'pre' : 'live'; st[g.home] = s; st[g.away] = s; });
+      if (!Object.keys(st).length) return { week: w, unknown: true };
+      return M.liveWeek(D, raw.matchups[w], shared.weeks[w], shared.players, function (team) { return st[team] || null; }, w);
+    });
+  }
+
   /* ---------- this league's draft-order habit, from its own past drafts (remembered per league) ---------- */
   function draftRule(D, raw) {
     var fallback = { nonPlayoff: 'maxpf', playoff: 'place', byRound: null, seasons: 0 };
@@ -159,11 +173,11 @@
       window.__lo = { raw: raw, league: D };
       if (D.phase === 'unsupported' || D.phase === 'pre') { remember(D); fail(D, D.why); return; }
       $('load-name').textContent = D.name; $('load-step').textContent = 'Projecting lineups and running the season.';
-      return Promise.all([loadShared(D), draftRule(D, raw)]).then(function (r) {
-        var shared = r[0], rule = r[1], need = M.weeksNeeded(D), proj = M.projectWeeks(D, shared, need);
+      return loadShared(D).then(function (sh) { return Promise.all([sh, draftRule(D, raw), liveWeek(D, raw, sh)]); }).then(function (r) {
+        var shared = r[0], rule = r[1], live = r[2], need = M.weeksNeeded(D), proj = M.projectWeeks(D, shared, need);
         var nextSeason = String(Number(D.season) + 1), rounds = Math.min(D.set.draftRounds || 0, 6);
         var draftShown = D.set.type === 'dynasty' && rounds > 0 && D.n >= 4 || (D.set.type === 'keeper' && rule.known && rounds > 0 && rounds <= 6);
-        var ctx = { league: D, proj: proj, shared: shared, draft: { show: !!draftShown, season: nextSeason, rounds: rounds || 1, traded: D.traded.filter(function (x) { return x.season === nextSeason; }), rule: rule },
+        var ctx = { league: D, proj: proj, shared: shared, live: live && !live.unknown ? live : null, draft: { show: !!draftShown, season: nextSeason, rounds: rounds || 1, traded: D.traded.filter(function (x) { return x.season === nextSeason; }), rule: rule },
           onRun: function (o) { methodText(D, o.cfg, o.N, { nonPlayoff: app ? app.state.np : rule.nonPlayoff, seasons: rule.seasons }, draftShown); window.__lo.cfg = o.cfg; window.__lo.base = o.base; } };
         remember(D);
         document.title = D.name + ' League Odds';
@@ -179,7 +193,8 @@
           var notes = [];
           if (D.set.overridden && !D.seedsMatch) notes.push('Your commissioner has edited the playoff bracket, so seeds here may differ from Sleeper’s.');
           if (!shared.meta && need.length) notes.push('Projections aren’t available right now, so teams are rated on season scoring alone.');
-          for (var w = D.scored + 1; w <= D.set.lastWeek && D.phase !== 'done'; w++) if ((D.scores[w] || []).some(function (x) { return x > 0; })) { notes.push('Week ' + w + ' is under way. It counts here once Sleeper marks it final.'); break; }
+          if (live && live.unknown) notes.push('Week ' + live.week + ' is under way. It counts here once Sleeper marks it final.');
+          else if (live) notes.push('Week ' + live.week + ' is under way. Points scored so far are counted and the rest is projected.');
           var old = $('flags'); if (old) old.remove();
           if (notes.length) { var bar = document.querySelector('.bar'); bar.parentNode.insertBefore(el('p', { class: 'note flag', id: 'flags', text: notes.join(' ') }), bar); window.__lo.notes = notes; }
         });
