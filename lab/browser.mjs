@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { anon, writeOut, getJSON, sleep } from './lib.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
-const SITE = process.env.SITE || 'https://mbitner-5.github.io/league-odds/next/';
+const SITE = process.env.SITE || 'https://mbitner-5.github.io/league-odds/';
 const ids = JSON.parse(fs.readFileSync('.labcache/survey_ids.json', 'utf8'));
 const t0 = Date.now();
 
@@ -66,6 +66,14 @@ const extra = {};
   extra.username = await p.evaluate(() => ({ leagues: document.querySelectorAll('#found a').length, err: document.getElementById('start-err').hidden ? '' : document.getElementById('start-err').textContent }));
   await p.fill('#q', 'https://sleeper.com/leagues/1313270302943223808/matchup'); await p.click('#go-btn'); await p.waitForFunction(() => !document.getElementById('app').hidden && document.querySelector('table.odds'), null, { timeout: 60000 });
   extra.link = await p.evaluate(() => ({ title: document.title, recent: (JSON.parse(localStorage.getItem('league-odds-recent')) || []).length }));
+  // no link to the code anywhere, the old preview address and the short league link both land on the right page
+  extra.codeLinksOnLeaguePage = await p.evaluate(() => document.querySelectorAll('a[href*="github"]').length);
+  await p.goto(SITE); await p.waitForSelector('#start:not([hidden])');
+  extra.home = await p.evaluate(() => ({ codeLinks: document.querySelectorAll('a[href*="github"]').length, exampleLinks: document.querySelectorAll('#start a[href*="league="]').length - document.querySelectorAll('#recent a').length, lede: document.querySelector('.lede').textContent, fine: document.querySelector('.fine').textContent }));
+  await p.goto(SITE + 'next/?league=1313270302943223808'); await p.waitForFunction(() => !document.getElementById('app').hidden && document.querySelector('table.odds'), null, { timeout: 60000 });
+  extra.oldPreview = await p.evaluate(s => ({ title: document.title, atRoot: location.href.startsWith(s + '?league=') }), SITE);
+  await p.goto(SITE + 'cherrypie/'); await p.waitForFunction(() => !document.getElementById('app').hidden && document.querySelector('table.odds'), null, { timeout: 60000 });
+  extra.shortLink = await p.evaluate(s => ({ title: document.title, atRoot: location.href.startsWith(s + '?league=') }), SITE);
   extra.errors = errs; await ctx.close(); }
 await browser.close();
 const bad = out.filter(r => r.errors.length || r.err || (r.overflow && r.overflow.length) || (!r.app && !r.message));

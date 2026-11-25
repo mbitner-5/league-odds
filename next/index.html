@@ -339,7 +339,7 @@ h1.long { font-size: clamp(30px, 8vw, 52px); line-height: 0.96; }
 <div class="wrap">
   <section id="start" class="start" hidden>
     <h1>League Odds</h1>
-    <p class="lede">Playoff and draft-pick odds for your fantasy league.</p>
+    <p class="lede">Playoff and draft-pick odds for your league.</p>
     <form class="go" id="go" autocomplete="off">
       <input id="q" type="text" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Sleeper league ID, league link or username, or an ESPN league link" placeholder="League ID, link or username">
       <button class="btn" type="submit" id="go-btn">Show odds</button>
@@ -347,7 +347,7 @@ h1.long { font-size: clamp(30px, 8vw, 52px); line-height: 0.96; }
     <p class="err" id="start-err" role="alert" hidden></p>
     <div class="pick" id="found" hidden></div>
     <div class="pick" id="recent" hidden></div>
-    <p class="fine">Works with Sleeper: the league ID is the long number in your league’s web address, or under League, Settings in the app. ESPN leagues work too if they’re public: paste the league’s link. <a id="example" href="?league=1313270302943223808">See an example</a>.</p>
+    <p class="fine">Works with Sleeper and public ESPN leagues.</p>
   </section>
 
   <section id="loading" class="loading" hidden><b id="load-name">Loading the league</b><span id="load-step">Reading standings and schedules from Sleeper.</span></section>
@@ -392,7 +392,7 @@ h1.long { font-size: clamp(30px, 8vw, 52px); line-height: 0.96; }
     <div class="cols" id="method-cols"></div>
   </section>
 
-  <footer>Data from Sleeper. <a href="https://github.com/mbitner-5/league-odds">Code on GitHub</a>. <a href="./" id="change">Change league</a>.</footer>
+  <footer>Data from Sleeper. <a href="./" id="change">Change league</a>.</footer>
   </div>
 </div>
 <div id="tip" role="tooltip" hidden></div>

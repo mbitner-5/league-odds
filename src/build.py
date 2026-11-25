@@ -71,7 +71,7 @@ def title_case(name):
 lg['name']=title_case(lg['name'])
 title=f"{lg['name']} League Odds"
 meta=f"Through Week {n} of {lg['regWeeks']}. Updated {pulled_short}."
-footer='Data from Sleeper. <a href="https://github.com/mbitner-5/league-odds">Code on GitHub</a>.'
+footer='Data from Sleeper.'
 page=open('src/template.html').read()
 page=page.replace('__TITLE__',html.escape(title)).replace('__LEAGUE__',html.escape(lg['name'])).replace('__META__',html.escape(meta))
 page=page.replace('__METHOD__',method).replace('__FOOTER__',footer)

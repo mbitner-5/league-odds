@@ -4,14 +4,10 @@ Playoff odds, draft-pick odds and projected lineups for Sleeper fantasy football
 
 The page plays out the rest of the season up to 40,000 times in the browser. Tap a winner in any game left and every number updates.
 
-There are two pages right now:
+Paste a Sleeper league ID, a league link or a username. The page reads the league straight from Sleeper in your browser.
+Nothing is stored and there is no account. Public ESPN leagues work too (beta): paste the league's link.
 
-- **The site root** is the Cherry Pie league, rebuilt every night.
-- **`/next/`** takes any Sleeper league: paste a league ID, a league link or a username.
-  It reads the league straight from Sleeper in your browser. Nothing is stored and there is no account.
-  Public ESPN leagues work too (beta): paste the league's link.
-
-## What the any-league page handles
+## What it handles
 
 - Any number of teams and playoff spots, byes, divisions, median games, re-seeded brackets, two-week rounds
 - Any scoring settings and any lineup (superflex, kickers, defenses, IDP, best ball)
@@ -30,19 +26,18 @@ and the strength model was fitted and scored on 26,000 real games.
 - `next/js/model.js` – team strength, week under way, draft-order rule
 - `next/js/app.js`, `next/js/main.js`, `next/index.html` – the page
 - `scripts/build_shared.mjs` – nightly player projections the page reads (`data/` on the site)
-- `src/`, `scripts/update.py`, `league.json`, `data/` – the Cherry Pie page and its nightly pull
+- `src/`, `data/` – the first single-league version, kept because the tests compare the general engine against it
 
 A GitHub Action (`.github/workflows/update.yml`) runs every night at midnight Eastern and on every push:
-it pulls the Cherry Pie league, runs every test, rebuilds both pages with fresh projections and publishes them.
+it runs every test, pulls fresh projections and publishes the site.
 
 ## Run it yourself
 
 ```
 node next/test/unit.js            # 300+ tests of the engine, scoring, lineups, draft rules
 node next/test/engine_regress.js  # the general engine against the original six-team one
-node src/test_engine.js           # the Cherry Pie page's own tests
-python3 src/build.py              # writes dist/index.html
-node scripts/build_shared.mjs dist/next/data   # projection files (needs network)
+node src/test_engine.js           # the original engine's tests
+node scripts/build_shared.mjs dist/data        # projection files (needs network)
 ```
 
 `lab/` holds the research scripts. They run on GitHub (the `Lab` workflow), read public Sleeper data,

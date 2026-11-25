@@ -26,7 +26,7 @@ for (const [k, id] of pub.entries()) {
 // the deployed page in a browser, for a few of them
 const browserOut = [];
 try {
-  const { chromium } = require('playwright'), SITE = 'https://mbitner-5.github.io/league-odds/next/', want = fs.readFileSync('next/js/main.js', 'utf8');
+  const { chromium } = require('playwright'), SITE = 'https://mbitner-5.github.io/league-odds/', want = fs.readFileSync('next/js/main.js', 'utf8');
   let live = false; for (let k = 0; k < 40 && !live; k++) { try { const r = await fetch(SITE + 'js/main.js?t=' + Date.now()); live = r.ok && (await r.text()) === want; } catch (e) {} if (!live) await sleep(15000); }
   const browser = await chromium.launch(), ok = out.filter(r => r.phase === 'regular').map(r => r.h), ids = pub.filter(id => ok.includes(anon('espn' + id))).slice(0, 4);
   for (const [k, id] of ids.entries()) {

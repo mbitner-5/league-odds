@@ -2,13 +2,13 @@ name: Update and publish
 
 on:
   schedule:
-    - cron: '0 5 * * *'        # midnight Eastern (standard time)
+    - cron: '0 5 * * *'        # midnight Eastern (standard time): fresh projections
   workflow_dispatch:
   push:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -19,38 +19,17 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      pull: ${{ steps.pull.outcome }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
 
-      - name: Pull the league from Sleeper
-        id: pull
-        if: github.event_name != 'push'   # code pushes rebuild from the saved data; only the nightly run pulls
-        continue-on-error: true      # if Sleeper is down or a check fails, keep the last good data
-        run: python3 scripts/update.py
-
-      - name: Restore the last good data if the pull failed
-        if: steps.pull.outcome == 'failure'
-        run: git checkout -- data
-
-      - name: Backtest, test, build
-        run: |
-          node src/backtest.js > /dev/null
-          node src/test_engine.js
-          python3 src/build.py
-
-      # Preview of the any-league page, published beside the league page at /next/
-      - name: Test the any-league page code
+      - name: Test
         run: |
           node next/test/unit.js
           node next/test/engine_regress.js
+          node src/test_engine.js
 
       - name: Last good projection files
         uses: actions/cache@v4
@@ -59,21 +38,15 @@ jobs:
           key: shared-${{ github.run_id }}
           restore-keys: shared-
 
-      - name: Add the any-league page and this week's projections
+      # The home page takes any league. /next/ (the old preview address) and /cherrypie/ forward to it.
+      - name: Build the site with this week's projections
         run: |
-          mkdir -p dist/next .shared
-          cp -r next/index.html next/js dist/next/
+          mkdir -p dist/next dist/cherrypie .shared
+          cp -r next/index.html next/js dist/
+          cp next/redirect.html dist/next/index.html
+          cp next/cherrypie.html dist/cherrypie/index.html
           if node scripts/build_shared.mjs .shared-new; then cp -r .shared-new/. .shared/; else echo "::warning::Projection pull failed, publishing the last good files"; fi
-          cp -r .shared dist/next/data
-
-      - name: Save the new data
-        if: steps.pull.outcome == 'success'
-        run: |
-          git config user.name "league-odds update"
-          git config user.email "actions@users.noreply.github.com"
-          git add data
-          git diff --cached --quiet || git commit -m "Nightly data update"
-          git push
+          cp -r .shared dist/data
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
@@ -89,12 +62,3 @@ jobs:
     steps:
       - id: deploy
         uses: actions/deploy-pages@v4
-
-  flag:
-    needs: build
-    if: needs.build.outputs.pull == 'failure'
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          echo "The Sleeper pull failed, so the site was rebuilt from the last good data."
-          exit 1
