@@ -4,7 +4,7 @@ name: Lab
 on:
   push:
     branches: [main]
-    paths: ['lab/**', 'next/**', '.github/workflows/lab.yml']
+    paths: ['lab/**', '.github/workflows/lab.yml']
   workflow_dispatch:
 
 permissions:
