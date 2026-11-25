@@ -28,6 +28,9 @@ jobs:
           path: .labcache
           key: labcache-${{ github.run_id }}
           restore-keys: labcache-
+      - name: Browser for page tests
+        run: |
+          if grep -q browser lab/tasks.txt; then npm i --no-save --no-audit --no-fund playwright@1.48.2 && npx playwright install --with-deps chromium; fi
       - name: Run
         run: |
           mkdir -p lab-out
