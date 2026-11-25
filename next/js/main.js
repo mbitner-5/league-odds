@@ -47,7 +47,7 @@
   function hrefOf(x) { return /^espn-/.test(String(x.id)) ? '?espn=' + String(x.id).slice(5) + '&season=' + x.season : '?league=' + x.id; }
   function leagueLink(x, sub) { return el('a', { href: hrefOf(x) }, [x.name, el('small', { text: sub || (/^espn-/.test(String(x.id)) ? 'ESPN, ' : '') + x.season })]); }
   function showStart(err) {
-    show('start'); document.title = 'League Odds';
+    show('start'); document.title = 'Playoffs & Picks';
     $('start-err').hidden = !err; $('start-err').textContent = err || '';
     var r = recent(), box = $('recent'); box.textContent = ''; box.hidden = !r.length;
     if (r.length) { box.appendChild(el('h2', { text: 'Recent' })); r.forEach(function (x) { box.appendChild(leagueLink(x)); }); }
@@ -158,7 +158,7 @@
   /* ---------- load and show one league ---------- */
   function fail(D, text) {
     show('message'); var box = $('message'); box.textContent = '';
-    box.appendChild(el('h1', { class: D && D.name.length > 22 ? 'long' : null, text: D ? D.name : 'League Odds' }));
+    box.appendChild(el('h1', { class: D && D.name.length > 22 ? 'long' : null, text: D ? D.name : 'Playoffs & Picks' }));
     box.appendChild(el('p', { text: text }));
     box.appendChild(el('p', null, [el('a', { href: './', text: 'Try another league' })]));
   }
@@ -182,7 +182,7 @@
         var ctx = { league: D, proj: proj, shared: shared, live: live && !live.unknown ? live : null, draft: { show: !!draftShown, season: nextSeason, rounds: rounds || 1, traded: D.traded.filter(function (x) { return x.season === nextSeason; }), rule: rule },
           onRun: function (o) { methodText(D, o.cfg, o.N, { nonPlayoff: app ? app.state.np : rule.nonPlayoff, seasons: rule.seasons }, draftShown); window.__lo.cfg = o.cfg; window.__lo.base = o.base; } };
         remember(D);
-        document.title = D.name + ' League Odds';
+        document.title = D.name + ' – Playoffs & Picks';
         $('league-name').textContent = D.name; $('league-name').className = D.name.length > 22 ? 'long' : '';
         var when = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).replace(' AM', ' am').replace(' PM', ' pm');
         var meta = D.phase === 'done' ? D.season + ' season, final.' : D.phase === 'playoffs' ? 'Playoffs, through Week ' + D.scored + '.' : (D.through ? 'Through Week ' + D.through + ' of ' + D.set.regEnd + '.' : 'Before Week ' + D.set.first + '.');
@@ -227,7 +227,7 @@
         var rule = { nonPlayoff: 'record', playoff: 'place', byRound: null, seasons: 0 };
         var ctx = { league: D, proj: pj.proj, shared: shared, live: null, source: 'ESPN', draft: { show: false, season: String(Number(D.season) + 1), rounds: 1, traded: [], rule: rule },
           onRun: function (o) { methodText(D, o.cfg, o.N, rule, false); window.__lo.cfg = o.cfg; window.__lo.base = o.base; } };
-        remember(D); document.title = D.name + ' League Odds'; $('league-name').textContent = D.name; $('league-name').className = D.name.length > 22 ? 'long' : '';
+        remember(D); document.title = D.name + ' – Playoffs & Picks'; $('league-name').textContent = D.name; $('league-name').className = D.name.length > 22 ? 'long' : '';
         var when = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).replace(' AM', ' am').replace(' PM', ' pm');
         $('meta').textContent = (D.phase === 'done' ? D.season + ' season, final.' : D.phase === 'playoffs' ? 'Playoffs, through Week ' + D.scored + '.' : D.through ? 'Through Week ' + D.through + ' of ' + D.set.regEnd + '.' : 'Before Week ' + D.set.first + '.') + ' Updated ' + when + '.';
         document.querySelector('footer').firstChild.textContent = 'Data from ESPN. ';

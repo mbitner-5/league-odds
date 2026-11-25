@@ -1,6 +1,6 @@
 // Which clean site names are still unregistered? Asks the public domain registries (RDAP). No league data involved.
 import { writeOut, sleep } from './lib.mjs';
-const names = ['leagueodds.com', 'leagueodds.app', 'leagueodds.io', 'leagueodds.co', 'leagueodds.net', 'leagueodds.org', 'leagueodds.football', 'leagueodds.xyz', 'leagueodds.fyi', 'leagueodds.live', 'leagueodds.site', 'leagueodds.fun',
+const names = ['playoffsandpicks.com', 'playoffsandpicks.app', 'playoffsandpicks.co', 'playoffsandpicks.io', 'playoffsandpicks.football', 'playoffsandpicks.net', 'playoffsandpicks.org', 'playoffsandpicks.xyz', 'playoffspicks.com', 'playoffs-picks.com', 'pandp.football', 'pandp.app', 'pnpodds.com', 'pandpodds.com', 'playoffspicks.app', 'leagueodds.com', 'leagueodds.app', 'leagueodds.io', 'leagueodds.co', 'leagueodds.net', 'leagueodds.org', 'leagueodds.football', 'leagueodds.xyz', 'leagueodds.fyi', 'leagueodds.live', 'leagueodds.site', 'leagueodds.fun',
   'getleagueodds.com', 'myleagueodds.com', 'theleagueodds.com', 'yourleagueodds.com', 'leagueodds.us', 'league-odds.com',
   'playoffodds.app', 'playoffodds.io', 'fantasyplayoffodds.com', 'fantasyleagueodds.com', 'dynastyodds.com', 'dynastyodds.app', 'dynastyodds.io', 'whatifodds.com', 'oddsmyleague.com', 'leaguewhatif.com'];
 const out = [];

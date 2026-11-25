@@ -1,4 +1,4 @@
-# League Odds
+# Playoffs & Picks
 
 Playoff odds, draft-pick odds and projected lineups for Sleeper fantasy football leagues.
 
